@@ -1,0 +1,24 @@
+# Bytecode e cache di Python
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+
+# Ambienti virtuali
+venv/
+.venv/
+env/
+
+# Dati di cache (il codice deve poterli rigenerare da data/raw)
+data/cache/
+*.parquet
+
+# Output grafici generati
+output/
+*.png
+*.html
+
+# File di configurazione degli editor
+.vscode/
+.idea/
+.DS_Store
