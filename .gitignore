@@ -22,4 +22,4 @@ output/
 # File di configurazione degli editor
 .vscode/
 .idea/
-.DS_Store
+.DS_Storedata/raw/
