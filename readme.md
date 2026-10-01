@@ -1,234 +1,174 @@
-# Global Equity Benchmark Simulator: SWDA vs VWCE vs VALL
+# Italian Investor Benchmark: SWDA vs VWCE vs VALL
 
-Simulatore quantitativo e probabilistico in Python per l'analisi comparativa a lungo termine (2000–2026) delle tre principali strategie passive su azionario globale:
+Simulatore quantitativo e probabilistico in Python per l'analisi del rischio e dei rendimenti reali a lungo termine (2000–2025) delle tre principali strategie passive ad accumulazione su azionario globale:
 
-1. **Solo Paesi Sviluppati (Large & Mid Cap)** — Proxy di **iShares Core MSCI World (SWDA)**.
+1. **Sviluppati Large & Mid Cap** — Proxy di **iShares Core MSCI World (SWDA)**.
+2. **Globale Large & Mid Cap (Sviluppati + Emergenti)** — Proxy di **Vanguard FTSE All-World (VWCE)**.
+3. **Globale All-Cap (Sviluppati + Emergenti + Small Cap)** — Proxy di **Vanguard FTSE Global All Cap (VALL)**.
 
-2. **Tutto il Mondo (Sviluppati + Emergenti Large & Mid Cap)** — Proxy di **Vanguard FTSE All-World (VWCE)**.
+Il progetto supera l'arbitrarietà dei tradizionali backtest su singolo percorso (*starting point bias* del 2000), focalizzandosi interamente sulla **distribuzione empirica a finestre mobili (*Rolling Windows*)** al netto dell'**inflazione italiana reale (CPI FOI)** e misurando non solo il rendimento a scadenza, ma il **tempo effettivo trascorso con un potere d'acquisto inferiore al capitale versato**.
 
-3. **Tutto il Mondo All-Cap (Sviluppati + Emergenti + Small Cap)** — Proxy di **Vanguard FTSE Global All Cap (VALL)**.
+---
 
-Il progetto nasce per superare i limiti dei tipici backtest lineari a breve termine, applicando l'approccio analitico e didattico promosso dal prof. Paolo Coletti: **orizzonti profondi (oltre 25 anni), rendimenti reali deflazionati su inflazione italiana (CPI), tassazione reale (imposta di bollo e capital gain), analisi a finestre mobili (*Rolling Returns*) e simulazione stocastica tramite *Block Bootstrapping*.**
+## 1. Il Dilemma dell'Investitore Globale
 
-## 1. Il Problema Finanziario: Il "Dilemma dell'Investitore Globale"
+Chi alloca il proprio patrimonio sull'azionario globale si trova tipicamente davanti a tre livelli di diversificazione:
 
-L'investitore passivo che decide di allocare al 100% su azionario globale si trova tipicamente davanti a tre livelli di diversificazione:
+| Strategia / Proxy | Benchmark di Riferimento | Copertura Geografica | Segmento di Capitalizzazione | Tesi di Investimento |
+| :--- | :--- | :--- | :--- | :--- |
+| **SWDA** *(MSCI World)* | MSCI World Net Total Return EUR | Paesi Sviluppati (~23 paesi) | Large & Mid Cap (~85% mercato) | Massima efficienza, governance consolidata, zero rischio giurisdizionale e di controllo dei capitali degli emergenti. |
+| **VWCE** *(FTSE All-World)* | MSCI ACWI Net Total Return EUR *(proxy)* | Sviluppati + Emergenti (~47 paesi) | Large & Mid Cap (~85-90% mercato) | Neutralità geografica globale; esposizione alla crescita economica e demografica dei mercati emergenti. |
+| **VALL** *(FTSE All Cap)* | MSCI ACWI IMI Net Total Return EUR *(proxy)* | Sviluppati + Emergenti (~47 paesi) | Large, Mid & **Small Cap** (~99% mercato) | Massima diversificazione teorica; cattura del premio dimensionale (*Size Premium* del modello Fama-French). |
 
-| Strategia / ETF | Benchmark Replicato | Copertura Geografica | Segmento Capitalizzazione | Tesi di Investimento | 
- | ----- | ----- | ----- | ----- | ----- | 
-| **SWDA** *(iShares Core MSCI World)* | MSCI World Net Total Return EUR | Paesi Sviluppati (\~23 nazioni) | Large & Mid Cap (\~85% mercato) | Massima efficienza, governance consolidata, nessun rischio politico/valutario tipico degli emergenti. | 
-| **VWCE** *(Vanguard FTSE All-World)* | MSCI ACWI Net Total Return EUR *(proxy)* | Sviluppati + Emergenti (\~47 nazioni) | Large & Mid Cap (\~85-90% mercato) | Replica neutrale dell'intera economia globale quotata; esposizione alla crescita demografica ed economica dei paesi emergenti. | 
-| **VALL** *(FTSE Global All Cap)* | MSCI ACWI IMI Net Total Return EUR *(proxy)* | Sviluppati + Emergenti (\~47 nazioni) | Large, Mid & **Small Cap** (\~99% mercato) | Massima diversificazione teorica; cattura del premio dimensionale (*Size Premium* del modello Fama-French). | 
-
-### Le Domande di Ricerca a cui Risponde il Simulatore
-
-1. **Emergenti:** L'inclusione dei mercati emergenti ha storicamente migliorato il profilo rendimento/rischio o ha introdotto solo volatilità superflua?
-
-2. **Small Cap:** L'aggiunta di circa il 10% di Small Cap globali genera un extra-rendimento tangibile al netto dei maggiori costi di gestione (TER)?
-
-3. **Resilienza al Rischio:** In caso di crash sistemici (crisi Dot-Com del 2000, Crisi Finanziaria del 2008, COVID del 2020), come divergono i tempi di recupero (*underwater duration*) e le perdite massime?
-
-4. **Potere d'Acquisto Reale:** Quanto capitale reale resta in mano all'investitore italiano dopo aver scontato l'inflazione Istat/FRED, l'imposta di bollo dello 0,20% annuo e il 26% di capital gain?
+---
 
 ## 2. Metodologia e Dati
 
 ### 2.1 Isolamento delle Variabili (*Ceteris Paribus*)
+Per evitare discrepanze dovute a metodologie di calcolo eterogenee di provider concorrenti (FTSE vs MSCI):
+* Tutti e tre i panieri appartengono alla medesima famiglia **MSCI Net Total Return (NTR)** in **EUR** con dividendi netti reinvestiti.
+* **Periodo Comune Validato:** **Dicembre 2000 – Marzo 2025** (292 mesi sequenziali senza discontinuità).
+* **Inflazione Italiana:** Serie storica mensile CPI All Items da FRED St. Louis (`ITACPIALLMINMEI`).
 
-Per confrontare gli strumenti senza introdurre il rumore dovuto a metodologie di calcolo eterogenee di provider concorrenti (FTSE vs MSCI), l'analisi utilizza **l'intera famiglia di indici MSCI**:
+### 2.2 Il Superamento dello *Starting Point Bias*
+Un singolo backtest dal 2000 al 2025 misura solo la fortuna o la sfortuna di aver investito in quel dato mese. Il simulatore analizza invece l'**intera popolazione di finestre mobili sovrapposte**:
+* **5 Anni (60 mesi):** 232 finestre storiche simulate.
+* **10 Anni (120 mesi):** 172 finestre storiche simulate.
+* **15 Anni (180 mesi):** 112 finestre storiche simulate.
+* **20 Anni (240 mesi):** 52 finestre storiche simulate.
 
-* **MSCI World** $\rightarrow$ Benchmark per SWDA.
+### 2.3 Metriche di Rischio Reale
+Per ogni finestra mobile $H$, oltre al **CAGR Reale** (calcolato tramite l'equazione esatta di Fisher), il motore traccia mese per mese la traiettoria del capitale reale:
 
-* **MSCI ACWI** (All Country World Index) $\rightarrow$ Proxy perfetto per FTSE All-World (VWCE).
+$$V_k^{\text{reale}} = \frac{P_{t_0 + k}}{P_{t_0}} \times \frac{\text{CPI}_{t_0}}{\text{CPI}_{t_0 + k}} \quad \text{con } k \in [1, H]$$
 
-* **MSCI ACWI IMI** (Investable Market Index) $\rightarrow$ Proxy perfetto per FTSE Global All Cap (VALL).
+* **% Tempo in Perdita Reale:** percentuale di mesi della finestra trascorsi con $V_k^{\text{reale}} < 1.0$ (potere d'acquisto intaccato rispetto al carrello della spesa di partenza).
+* **Max Striscia Consecutiva Sott'Acqua:** durata massima continua (in mesi) trascorsa in perdita reale prima di un recupero.
+* **Peggior Drawdown Reale:** calo percentuale massimo calcolato sui picchi reali all'interno dell'orizzonte.
 
-Tutte le serie storiche condividono gli stessi identici criteri contabili:
+---
 
-* **Frequenza:** Mensile (*Monthly End of Month*).
+## 3. Risultati Empirici e Conclusioni
 
-* **Valuta:** Euro (EUR) — nessun bisogno di modellare tassi di cambio sintetici.
+Dalla simulazione su tutte le finestre storiche disponibili (2000–2025) emergono i seguenti risultati aggregati:
 
-* **Livello:** **Net Total Return (NTR)** — reinvestimento automatico dei dividendi al netto delle ritenute fiscali alla fonte, replicando fedelmente il funzionamento degli ETF ad accumulazione.
+| Orizzonte Temporale | Benchmark / Indice | Peggior CAGR | Mediana (P50) | Miglior CAGR | P(Reale < 0) | Max % Tempo Rosso | Peggior DD Reale |
+| :--- | :--- | :---: | :---: | :---: | :---: | :---: | :---: |
+| **5 Anni** (60 mesi) | **MSCI World (SWDA)** | -7,36% | +7,51% | +15,86% | 27,2% | 100,0% (60m) | -50,95% |
+| *232 finestre* | **MSCI ACWI (VWCE)** | -6,85% | +7,62% | +15,47% | 24,6% | 100,0% (60m) | -50,75% |
+| | **MSCI ACWI IMI (VALL)** | -6,74% | +7,66% | +16,22% | 23,3% | 100,0% (60m) | -51,19% |
+| **10 Anni** (120 mesi) | **MSCI World (SWDA)** | -3,61% | +6,91% | +13,36% | 10,5% | 100,0% (120m) | -57,44% |
+| *172 finestre* | **MSCI ACWI (VWCE)** | -2,89% | +6,64% | +12,64% | 10,5% | 100,0% (120m) | -55,48% |
+| | **MSCI ACWI IMI (VALL)** | -2,19% | +6,91% | +12,96% | 10,5% | 100,0% (120m) | -53,34% |
+| **15 Anni** (180 mesi) | **MSCI World (SWDA)** | +0,63% | +6,17% | +11,76% | 0,0% | 91,1% (164m) | -57,44% |
+| *112 finestre* | **MSCI ACWI (VWCE)** | +0,70% | +6,06% | +11,12% | 0,0% | 90,0% (162m) | -55,48% |
+| | **MSCI ACWI IMI (VALL)** | +1,19% | +6,20% | +11,19% | 0,0% | 88,3% (159m) | -53,34% |
+| **20 Anni** (240 mesi) | **MSCI World (SWDA)** | +2,89% | +6,17% | +7,54% | 0,0% | 68,3% (164m) | -57,44% |
+| *52 finestre* | **MSCI ACWI (VWCE)** | +2,98% | +6,00% | +7,21% | 0,0% | 67,5% (162m) | -55,48% |
+| | **MSCI ACWI IMI (VALL)** | +3,36% | +6,19% | +7,26% | 0,0% | 66,2% (159m) | -53,34% |
 
-* **Periodo Comune:** **Dicembre 2000 – Agosto 2026** (309 mesi continui, oltre 25 anni e mezzo).
+### Lezioni Chiave per l'Investitore
 
-### 2.2 Inflazione Italiana (CPI)
+1. **La Mediana Converge (~6,1% Reale Annuo):**  
+   Su orizzonti di 15 e 20 anni, le mediane storiche dei tre strumenti sono essenzialmente indistinguibili. L'aggiunta di emergenti e small cap non incrementa il rendimento atteso tipico.
+2. **La Diversificazione Globale (VALL) Alza il Pavimento nei Periodi Bui:**  
+   Nei peggiori scenari storici, VALL sovraperforma sensibilmente l'MSCI World:
+   * A 10 anni attenua il caso peggiore da **-3,61%** a **-2,19% annuo** (+1,42% all'anno di protezione reale).
+   * A 15 anni quasi raddoppia il rendimento minimo (**+1,19%** vs **+0,63% reale**).
+   * Il peggior calo reale dal picco si ferma al **-53,34%** rispetto al **-57,44%** di World.
+3. **MSCI World Ha la Coda Destra Più Spinta (Massimizza i Cicli Favorevoli):**  
+   Nei cicli in cui dominano le grandi società americane e i monopoli tecnologici consolidati, l'assenza di mercati periferici spinge maggiormente verso l'alto (miglior CAGR decennale a +13,36% vs +12,96%).
+4. **Il Paradosso dei 15 Anni:**  
+   Sebbene la probabilità di perdita reale a 15 anni sia storicamente dello **0,0%**, nello scenario peggiore l'investitore ha trascorso il **91,1% del tempo (164 mesi su 180, oltre 13 anni e mezzo)** con un potere d'acquisto inferiore ai soldi versati, tornando in guadagno reale solo in prossimità della scadenza.
 
-I dati di inflazione sono estratti direttamente dalla **Federal Reserve Bank of St. Louis (FRED)** tramite la serie:
+---
 
-* **`ITACPIALLMINMEI`**: Consumer Price Index of All Items for Italy (frequenza mensile).
+## 4. Architettura del Repository
 
-## 3. Specifiche delle Analisi e Formule Matematiche
-
-Il motore del simulatore implementa quattro cluster analitici distinti:
-
-### 3.1 Modalità di Investimento
-
-1. **PIC (Lump Sum):** Investimento di un capitale $C_0$ all'istante iniziale $t_0$.
-
-2. **PAC (Dollar-Cost Averaging):**
-
-   * *Rata Costante:* Versamento di una quota fissa $R$ ogni fine mese.
-
-   * *Rata Indicizzata:* La quota $R_t$ viene adeguata annualmente al tasso di inflazione storica, simulando la crescita dello stipendio.
-
-### 3.2 Metriche di Rendimento
-
-* **Compound Annual Growth Rate (CAGR):**
-
-  $$
-  \text{CAGR} = \left(\frac{V_f}{V_0}\right)^{\frac{1}{\Delta t}} - 1
-  $$
-
-  dove $\Delta t$ è la durata temporale in anni.
-
-* **Rendimento Reale Netto (Equazione di Fisher esatta):**
-
-  $$
-  1 + r_{\text{reale}} = \frac{1 + r_{\text{nominale}}}{1 + i_{\text{cumulata}}}
-  $$
-
-* **Money-Weighted Return (MWR / XIRR) per il PAC:**
-  Tasso interno di rendimento $r$ annualizzato che azzera il valore attuale netto dei flussi di cassa $C_t$:
-
-  $$
-  \sum_{t=0}^{N} \frac{C_t}{(1 + r)^{\frac{d_t - d_0}{365}}} = 0
-  $$
-
-### 3.3 Metriche di Rischio e Drawdown
-
-* **High-Water Mark (HWM) e Drawdown Series:**
-
-  $$
-  \text{HWM}_t = \max_{0 \le s \le t} (V_s)
-  $$
-
-  $$
-  \text{Drawdown}_t = \frac{V_t - \text{HWM}_t}{\text{HWM}_t}
-  $$
-
-* **Max Drawdown (MDD):** $\min_{t}(\text{Drawdown}_t)$.
-
-* **Underwater Duration:** Il tempo massimo (in mesi/anni) trascorso dal portafoglio prima di eguagliare o superare un precedente picco.
-
-* **Volatilità Annualizzata:**
-
-  $$
-  \sigma_{\text{annuale}} = \sigma_{\text{mensile}} \times \sqrt{12}
-  $$
-
-### 3.4 Fisco Italiano e Costi
-
-* **TER (Total Expense Ratio):** Scalato mensilmente dal valore quota:
-
-  $$
-  r_{\text{net\_cost}} = r_{\text{index}} - \left[(1 + \text{TER})^{\frac{1}{12}} - 1\right]
-  $$
-
-  *Default:* SWDA = 0.20%, VWCE = 0.14%, VALL = 0.07%.
-
-* **Imposta di Bollo (0,20% annuo):** Detratta al 31 dicembre di ciascun anno sul controvalore maturato del portafoglio:
-
-  $$
-  \text{Bollo}_y = 0.0020 \times V_{\text{31-Dec}}
-  $$
-
-* **Tassazione Capital Gain (26%):** Applicata in un'unica soluzione al termine del periodo solo sulle plusvalenze maturate:
-
-  $$
-  \text{Imposta Plusvalenza} = 0.26 \times \max(0, V_{\text{finale}} - C_{\text{totale\_versato}})
-  $$
-
-### 3.5 Analisi Statistica Avanzata (alla Coletti)
-
-1. **Rolling Returns Analysis:**
-   Valutazione delle distribuzioni di rendimento su finestre mobili a orizzonte fisso ($H \in \{5, 10, 15, 20\}$ anni):
-
-   * Percentili calcolati: **5° percentile** (scenario peggiore), **50° percentile** (mediana), **95° percentile** (scenario ottimistico).
-
-   * Probabilità storica di rendimento reale negativo: $P(r_{\text{reale}} < 0)$.
-
-2. **Block Bootstrapping (Monte Carlo non parametrico):**
-   Invece di ipotizzare una distribuzione normale teorica (che ignora crolli estremi e asimmetria), la serie storica dei rendimenti viene ricampionata a blocchi continui di $B = 12$ mesi per preservare la correlazione seriale e generare $N = 2.000$ percorsi stocastici sintetici.
-
-## 4. Architettura Software del Repository
-
-La struttura del progetto separa rigorosamente il data layer, la logica matematica pura e la visualizzazione:
+La struttura del progetto separa nettamente caricamento dati, logica finanziaria e visualizzazione:
 
 ```
-etf-global-benchmark-sim/
+italian-investor-benchmark/
 │
 ├── data/
-│   ├── raw/                   # File originali scaricati dal portale MSCI
-│   │   ├── msci_world.xls
-│   │   ├── msci_acwi.xls
-│   │   └── msci_acwi_imi.xls
-│   └── cache/                 # File Parquet preprocessati ad alta velocità
-│       ├── benchmarks.parquet
-│       └── inflation_italy.parquet
+│   ├── raw/                   # Dataset originali MSCI (.xls)
+│   └── cache/                 # File Parquet compressi e preprocessati
 │
 ├── src/
-│   ├── __init__.py
-│   ├── config.py              # Parametri globali (TER, aliquote fiscali, orizzonti)
+│   ├── config.py              # Costanti globali, aliquote fiscali e parametri orizzonti
 │   ├── data/
-│   │   ├── __init__.py
-│   │   ├── msci_loader.py     # Ingestion, parsing e allineamento join degli indici
-│   │   └── fred_loader.py     # Download automatico e caching CPI Italia
-│   │
+│   │   ├── msci_loader.py     # Ingestion, parsing e inner-join delle serie storiche MSCI
+│   │   └── fred_loader.py     # Download e caching dell'inflazione CPI Italia da FRED
 │   ├── engine/
-│   │   ├── __init__.py
-│   │   ├── metrics.py         # Funzioni pure: CAGR, XIRR, Drawdown, Volatilità
-│   │   ├── portfolio.py       # Motore PIC & PAC (gestione quote, TER, bollo, tasse)
-│   │   └── statistics.py      # Finestre mobili (rolling) e Block Bootstrapping
-│   │
+│   │   ├── metrics.py         # Funzioni pure: CAGR, equazione di Fisher, Drawdown, XIRR
+│   │   ├── portfolio.py       # Motore contabile PIC & PAC con fiscalità italiana (bollo e capital gain)
+│   │   └── statistics.py      # Motore statistico a finestre mobili (rendimenti e durata perdite)
 │   └── visualizer/
-│       ├── __init__.py
-│       ├── tables.py          # Tabelle riassuntive da terminale (Rich / Tabulate)
-│       └── charts.py          # Generazione grafici (Matplotlib / Plotly)
+│       ├── tables.py          # Formattazione tabelle comparative a terminale
+│       └── charts.py          # Generazione grafici ad alta risoluzione (output/)
 │
-├── tests/
-│   ├── test_metrics.py        # Test di consistenza matematica sulle formule
-│   └── test_portfolio.py      # Test contabile su flussi di cassa e imposte
+├── tests/                     # Suite di unit test automatizzati (pytest)
+│   ├── test_fred_loader.py
+│   ├── test_metrics.py
+│   ├── test_msci_loader.py
+│   ├── test_portfolio.py
+│   └── test_statistics.py
 │
-├── .gitignore
+├── output/                    # Grafici PNG generati a runtime (300 DPI)
+│   ├── rolling_cagr_distribution.png
+│   └── rolling_real_loss_time.png
+│
+├── pyproject.toml
 ├── requirements.txt
+├── main.py                    # Entrypoint dell'applicazione
 └── README.md
-
-
 ```
 
-## 5. Output Attesi del Simulatore
+---
 
-All'esecuzione dell'analisi completa, il tool genera:
+## 5. Installazione ed Utilizzo
 
-1. **Tabella Comparativa Riassuntiva:**
+### Prerequisiti
+* Python **3.10** o superiore (sviluppato e testato su Python 3.12).
+* Un ambiente virtuale raccomandato (`venv`).
 
-   * Capitale finale (nominale e reale).
+### Setup
 
-   * CAGR e MWR/XIRR (lordo e netto da imposte).
+```bash
+# 1. Clona il repository
+git clone [https://github.com/tuo-username/italian-investor-benchmark.git](https://github.com/tuo-username/italian-investor-benchmark.git)
+cd italian-investor-benchmark
 
-   * Max Drawdown e mesi massimi di recupero.
+# 2. Crea e attiva l'ambiente virtuale
+python3 -m venv .venv
+source .venv/bin/activate
 
-   * Volatilità annualizzata.
+# 3. Installa le dipendenze
+pip install -r requirements.txt
+```
 
-2. **Grafico dell'Evoluzione Patrimoniale:**
+### Esecuzione della Suite di Test
 
-   * Linea del valore nominale vs linea del potere d'acquisto reale (in Euro costanti).
+Per verificare l'integrità delle funzioni matematiche, contabili e statistiche:
 
-3. **Underwater Plot:**
+```bash
+pytest -v
+```
 
-   * Grafico dell'intensità e durata dei drawdown a confronto nei tre scenari.
+### Esecuzione del Simulatore
 
-4. **Grafico delle Finestre Mobili (Rolling Boxplots):**
+Per eseguire l'analisi completa a finestre mobili e generare i grafici:
 
-   * Dispersione dei rendimenti annui a 5, 10, 15 e 20 anni per ciascun indice.
+```bash
+python main.py
+```
 
-5. **Ventaglio Monte Carlo / Percentili Bootstrap:**
+I grafici esportati in `output/` comprendono:
+* `rolling_cagr_distribution.png`: Boxplot della distribuzione dei rendimenti reali netti per orizzonte (5, 10, 15, 20 anni).
+* `rolling_real_loss_time.png`: Istogramma della percentuale di tempo trascorsa in perdita reale rispetto all'inflazione (Scenario Peggiore vs Mediana).
 
-   * Cono di probabilità (5°-50°-95°) del valore patrimoniale atteso nel tempo.
+---
 
-## 6. Requisiti e Riproducibilità
+## 6. Licenza
 
-* **Python:** 3.10+
-
-* **Librerie Principali:** `pandas`, `numpy`, `scipy`, `matplotlib`, `pyarrow`
+Distribuito sotto licenza MIT. I dati delle serie storiche degli indici appartengono a MSCI Inc.; i dati sull'indice dei prezzi al consumo (CPI) appartengono a Istat / FRED St. Louis.
