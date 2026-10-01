@@ -5,9 +5,7 @@ import requests
 
 from src.config import CACHE_DATA_DIR
 
-FRED_CPI_URL = (
-    "https://fred.stlouisfed.org/graph/fredgraph.csv?id=ITACPIALLMINMEI"
-)
+FRED_CPI_URL = "https://fred.stlouisfed.org/graph/fredgraph.csv?id=ITACPIALLMINMEI"
 INFLATION_CACHE_FILE = CACHE_DATA_DIR / "inflation_italy.parquet"
 
 

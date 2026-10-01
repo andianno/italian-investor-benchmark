@@ -74,3 +74,16 @@ def test_calculate_xirr():
     leap_rate = calculate_xirr(cash_flows, leap_dates)
     expected_leap_rate = (1100.0 / 1000.0) ** (365.0 / 366.0) - 1.0
     assert pytest.approx(leap_rate, rel=1e-4) == expected_leap_rate
+
+
+def calculate_real_return_fisher(nominal_return: float, inflation_rate: float) -> float:
+    """Calcola il rendimento reale esatto tramite l'equazione di Fisher:
+
+    (1 + r_reale) = (1 + r_nominale) / (1 + inflazione)
+    r_reale = (1 + r_nominale) / (1 + inflazione) - 1
+    """
+    return (1.0 + nominal_return) / (1.0 + inflation_rate) - 1.0
+
+
+# Alias per retrocompatibilità
+calculate_real_return = calculate_real_return_fisher

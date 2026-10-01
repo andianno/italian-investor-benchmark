@@ -87,9 +87,8 @@ def _calculate_underwater_duration(drawdown_series: pd.Series) -> int:
             current_duration = 0
     return max_duration
 
-def _calculate_loss_duration(
-        values: np.ndarray, thresholds: np.ndarray
-    ) -> int:
+
+def _calculate_loss_duration(values: np.ndarray, thresholds: np.ndarray) -> int:
     """Calcola la massima sequenza di mesi consecutivi in cui il portafoglio
 
     è rimasto al di sotto del capitale totale versato fino a quel mese.
@@ -107,6 +106,7 @@ def _calculate_loss_duration(
             current_duration = 0
 
     return max_duration
+
 
 def simulate_portfolio(
     dates: pd.Series,
@@ -155,9 +155,7 @@ def simulate_portfolio(
     """
     mode_clean = mode.strip().upper()
     if mode_clean not in ("PIC", "PAC"):
-        raise ValueError(
-            f"Modalità '{mode}' non valida. Selezionare 'PIC' o 'PAC'."
-        )
+        raise ValueError(f"Modalità '{mode}' non valida. Selezionare 'PIC' o 'PAC'.")
 
     dates_clean = pd.Series(pd.to_datetime(dates)).reset_index(drop=True)
     prices_clean = pd.Series(prices, dtype=float).reset_index(drop=True)
@@ -170,9 +168,7 @@ def simulate_portfolio(
     # 1. Modello del TER: decurtazione geometrica mensile sul valore quota
     # drag_mensile = (1 + TER)^(1/12) - 1
     monthly_ter_drag = (1.0 + ter_annual) ** (1.0 / 12.0) - 1.0
-    nav_per_share = prices_clean * (
-        (1.0 - monthly_ter_drag) ** np.arange(n_months)
-    )
+    nav_per_share = prices_clean * ((1.0 - monthly_ter_drag) ** np.arange(n_months))
 
     # 2. Strutture dati contabili
     shares = np.zeros(n_months, dtype=float)
@@ -244,9 +240,7 @@ def simulate_portfolio(
     # 5.2 Durata in perdita reale (V_reale_t < Somma potere d'acquisto versato in base t0)
     real_contributions = contributions * (cpi_0 / cpi_clean.values)
     cumulative_real_invested = np.cumsum(real_contributions)
-    max_real_loss = _calculate_loss_duration(
-        real_values, cumulative_real_invested
-    )
+    max_real_loss = _calculate_loss_duration(real_values, cumulative_real_invested)
 
     # Volatilità annualizzata della strategia al netto del TER
     nav_returns = nav_per_share.pct_change()
@@ -290,9 +284,7 @@ def simulate_portfolio(
     active_mask = contributions > 0
     active_mask[-1] = True  # Include sempre la data di chiusura
 
-    xirr_gross = calculate_xirr(
-        cf_gross[active_mask], dates_clean[active_mask]
-    )
+    xirr_gross = calculate_xirr(cf_gross[active_mask], dates_clean[active_mask])
     xirr_net = calculate_xirr(cf_net[active_mask], dates_clean[active_mask])
     xirr_real = calculate_xirr(cf_real[active_mask], dates_clean[active_mask])
 
@@ -321,15 +313,9 @@ def simulate_portfolio(
         total_stamp_duty=round(float(stamp_duty_paid.sum()), 2),
         final_real_gross=round(final_real_gross, 2),
         final_real_net=round(final_real_net, 2),
-        cagr_nominal_gross=(
-            round(cagr_gross, 4) if cagr_gross is not None else None
-        ),
-        cagr_nominal_net=(
-            round(cagr_net, 4) if cagr_net is not None else None
-        ),
-        cagr_real_net=(
-            round(cagr_real_net, 4) if cagr_real_net is not None else None
-        ),
+        cagr_nominal_gross=(round(cagr_gross, 4) if cagr_gross is not None else None),
+        cagr_nominal_net=(round(cagr_net, 4) if cagr_net is not None else None),
+        cagr_real_net=(round(cagr_real_net, 4) if cagr_real_net is not None else None),
         xirr_nominal_gross=round(xirr_gross, 4),
         xirr_nominal_net=round(xirr_net, 4),
         xirr_real_net=round(xirr_real, 4),

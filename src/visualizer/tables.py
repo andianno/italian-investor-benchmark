@@ -1,156 +1,63 @@
-"""Modulo di formattazione e rendering tabellare a terminale.
+"""Modulo di formattazione a terminale per statistiche a finestre mobili."""
 
-Genera prospetti comparativi puliti senza richiedere librerie esterne pesanti.
-"""
-
-from typing import Dict, List, Optional
-from src.engine.portfolio import SimulationResult
-from src.engine.statistics import BootstrapResult, RollingWindowStats
+from typing import Dict
+from src.engine.statistics import RollingWindowStats
 
 
-def _fmt_curr(val: Optional[float]) -> str:
-    if val is None:
-        return "N/D"
-    return f"{val:,.2f} €".replace(",", "X").replace(".", ",").replace("X", ".")
-
-
-def _fmt_pct(val: Optional[float]) -> str:
-    if val is None:
-        return "N/D"
+def _fmt_pct(val: float) -> str:
     return f"{val * 100:+.2f}%".replace(".", ",")
 
 
-def print_portfolio_comparison(
-    results: List[SimulationResult], title: str
+def print_rolling_comprehensive_summary(
+    all_rolling_by_benchmark: Dict[str, Dict[int, RollingWindowStats]],
 ) -> None:
-    """Stampa una tabella comparativa a colonne affiancate per le strategie simulate."""
-    if not results:
-        return
+    """Stampa la tabella comparativa definitiva su rendimenti e permanenza in perdita reale."""
+    horizons = [5, 10, 15, 20]
+    benchmarks = list(all_rolling_by_benchmark.keys())
 
-    col_w = 26
-    lbl_w = 34
-
-    print(f"\n{'=' * (lbl_w + col_w * len(results))}")
-    print(f"  {title.upper()}")
-    print(f"{'=' * (lbl_w + col_w * len(results))}")
-
-    # Header
-    header = f"{'Metrica Contabile / Finanziaria':<{lbl_w}}"
-    for r in results:
-        header += f"{r.benchmark_name:>{col_w}}"
-    print(header)
-    print(f"{'-' * (lbl_w + col_w * len(results))}")
-
-    rows = [
-        ("Orizzonte temporale (anni)", [f"{r.years:.2f}" for r in results]),
-        (
-            "Capitale Totale Versato",
-            [_fmt_curr(r.total_invested) for r in results],
-        ),
-        (
-            "Controvalore Nominale Lordo",
-            [_fmt_curr(r.final_nominal_gross) for r in results],
-        ),
-        (
-            "Imposta di Bollo Totale (0,20%)",
-            [_fmt_curr(r.total_stamp_duty) for r in results],
-        ),
-        (
-            "Imposta Capital Gain (26%)",
-            [_fmt_curr(r.capital_gain_tax) for r in results],
-        ),
-        (
-            "Controvalore Nominale Netto",
-            [_fmt_curr(r.final_nominal_net) for r in results],
-        ),
-        (
-            "Valore Reale Netto (Potere d'Acquisto)",
-            [_fmt_curr(r.final_real_net) for r in results],
-        ),
-        (
-            "CAGR Nominale Lordo",
-            [_fmt_pct(r.cagr_nominal_gross) for r in results],
-        ),
-        (
-            "CAGR Nominale Netto",
-            [_fmt_pct(r.cagr_nominal_net) for r in results],
-        ),
-        ("CAGR Reale Netto", [_fmt_pct(r.cagr_real_net) for r in results]),
-        (
-            "XIRR (MWR) Nominale Lordo",
-            [_fmt_pct(r.xirr_nominal_gross) for r in results],
-        ),
-        (
-            "XIRR (MWR) Nominale Netto",
-            [_fmt_pct(r.xirr_nominal_net) for r in results],
-        ),
-        ("XIRR (MWR) Reale Netto", [_fmt_pct(r.xirr_real_net) for r in results]),
-        ("Max Drawdown della Quota", [_fmt_pct(r.max_drawdown) for r in results]),
-        (
-            "Max Underwater Quota (Asset)",
-            [f"{r.max_underwater_months} mesi" for r in results],
-        ),
-        (
-            "Max in Perdita Nominale (Conto)",
-            [f"{r.max_nominal_loss_months} mesi" for r in results],
-        ),
-        (
-            "Max in Perdita Reale (Inflazione)",
-            [f"{r.max_real_loss_months} mesi" for r in results],
-        ),
-        (
-            "Volatilità Annualizzata",
-            [_fmt_pct(r.annualized_volatility) for r in results],
-        ),
-    ]
-
-    for label, vals in rows:
-        line = f"{label:<{lbl_w}}"
-        for v in vals:
-            line += f"{v:>{col_w}}"
-        print(line)
-
-    print(f"{'=' * (lbl_w + col_w * len(results))}\n")
-
-
-def print_rolling_returns_table(
-    benchmark_name: str, stats_dict: Dict[int, RollingWindowStats]
-) -> None:
-    """Stampa la distribuzione statistica dei rendimenti a finestre mobili."""
-    print(f"\n>>> ANALISI FINESTRE MOBILI (ROLLING RETURNS): {benchmark_name}")
-    header = (
-        f"{'Orizzonte':<11} | {'Finestre':<8} | {'Min Reale':<11} | {'P05 Reale':<11} | "
-        f"{'Mediana Reale':<14} | {'P95 Reale':<11} | {'Max Reale':<11} | {'P(Reale < 0)':<12}"
+    print("\n" + "=" * 115)
+    print(
+        "         ANALISI FINESTRE MOBILI (2000-2025): RENDIMENTI REALI E RISCHIO SOTT'ACQUA"
     )
-    print("-" * len(header))
-    print(header)
-    print("-" * len(header))
+    print("=" * 115)
 
-    for h, s in sorted(stats_dict.items()):
+    for h in horizons:
+        n_win = all_rolling_by_benchmark[benchmarks[0]][h].n_windows
         print(
-            f"{f'{h} anni':<11} | "
-            f"{s.n_windows:<8} | "
-            f"{_fmt_pct(s.real_min):>11} | "
-            f"{_fmt_pct(s.real_p05):>11} | "
-            f"{_fmt_pct(s.real_median):>14} | "
-            f"{_fmt_pct(s.real_p95):>11} | "
-            f"{_fmt_pct(s.real_max):>11} | "
-            f"{f'{s.negative_real_prob * 100:.1f}%':>12}"
+            f"\n>>> ORIZZONTE TEMPORALE: {h} ANNI ({h * 12} mesi) [Finestre simulate: {n_win}]"
         )
-    print("-" * len(header))
 
+        col_names = [
+            f"{'Benchmark / Indice':<24}",
+            f"{'Peggior CAGR':<13}",
+            f"{'Mediana (P50)':<13}",
+            f"{'Miglior CAGR':<13}",
+            f"{'P(Reale < 0)':<12}",
+            f"{'Max % Tempo Rosso':<17}",
+            f"{'Peggior DD Reale':<14}",
+        ]
+        header = " | ".join(col_names)
+        divider = "-" * len(header)
 
-def print_bootstrap_table(name: str, bs: BootstrapResult) -> None:
-    """Stampa l'esito della simulazione Monte Carlo con Block Bootstrapping."""
-    print(
-        f"\n>>> MONTE CARLO BOOTSTRAP (12m blocks, {bs.n_simulations} sim, {bs.horizon_years}y): {name}"
-    )
-    print(f"  * CAGR Reale Mediano (P50):    {_fmt_pct(bs.terminal_real_cagr_p50)}")
-    print(f"  * Scenario Negativo (P05):      {_fmt_pct(bs.terminal_real_cagr_p05)}")
-    print(f"  * Scenario Positivo (P95):      {_fmt_pct(bs.terminal_real_cagr_p95)}")
-    print(
-        f"  * Probabilità di Perdita Nominale: {bs.loss_prob_nominal * 100:.2f}%"
-    )
-    print(
-        f"  * Probabilità di Perdita Reale:    {bs.loss_prob_real * 100:.2f}%"
-    )
+        print(divider)
+        print(header)
+        print(divider)
+
+        for name in benchmarks:
+            s = all_rolling_by_benchmark[name][h]
+            p_loss_str = f"{s.negative_real_prob * 100:.1f}%"
+            time_red_str = (
+                f"{s.loss_time_pct_max:.1f}% ({s.max_consecutive_loss_months}m)"
+            )
+            row = [
+                f"{name:<24}",
+                f"{_fmt_pct(s.real_min):>13}",
+                f"{_fmt_pct(s.real_median):>13}",
+                f"{_fmt_pct(s.real_max):>13}",
+                f"{p_loss_str:>12}",
+                f"{time_red_str:>17}",
+                f"{_fmt_pct(s.worst_drawdown_real):>14}",
+            ]
+            print(" | ".join(row))
+        print(divider)
+    print("=" * 115 + "\n")

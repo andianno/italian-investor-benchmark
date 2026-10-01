@@ -26,9 +26,7 @@ def _parse_single_msci_xls(filepath: Path, col_name: str) -> pd.DataFrame:
     df["date"] = df["date"] + pd.offsets.MonthEnd(0)
 
     # Converte il prezzo in virgola mobile rimuovendo eventuali separatori delle migliaia
-    df[col_name] = (
-        df[col_name].astype(str).str.replace(",", "").astype(float)
-    )
+    df[col_name] = df[col_name].astype(str).str.replace(",", "").astype(float)
 
     return df.sort_values("date").reset_index(drop=True)
 
@@ -42,15 +40,9 @@ def build_benchmarks_parquet(force_reload: bool = False) -> pd.DataFrame:
         return pd.read_parquet(cache_path)
 
     # Lettura delle tre serie storiche
-    df_world = _parse_single_msci_xls(
-        RAW_DATA_DIR / "msci_world.xls", "msci_world"
-    )
-    df_acwi = _parse_single_msci_xls(
-        RAW_DATA_DIR / "msci_acwi.xls", "msci_acwi"
-    )
-    df_imi = _parse_single_msci_xls(
-        RAW_DATA_DIR / "msci_acwi_imi.xls", "msci_acwi_imi"
-    )
+    df_world = _parse_single_msci_xls(RAW_DATA_DIR / "msci_world.xls", "msci_world")
+    df_acwi = _parse_single_msci_xls(RAW_DATA_DIR / "msci_acwi.xls", "msci_acwi")
+    df_imi = _parse_single_msci_xls(RAW_DATA_DIR / "msci_acwi_imi.xls", "msci_acwi_imi")
 
     # Intersezione delle date (Inner Join)
     merged = df_world.merge(df_acwi, on="date").merge(df_imi, on="date")
