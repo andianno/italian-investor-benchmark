@@ -91,6 +91,10 @@ def print_portfolio_comparison(
             [f"{r.max_underwater_months} mesi" for r in results],
         ),
         (
+            "Max in Perdita sul Versato (Conto)",
+            [f"{r.max_loss_duration_months} mesi" for r in results],
+        ),
+        (
             "Volatilità Annualizzata",
             [_fmt_pct(r.annualized_volatility) for r in results],
         ),

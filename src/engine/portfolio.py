@@ -42,6 +42,7 @@ class SimulationResult:
     xirr_real_net: float
     max_drawdown: float
     max_underwater_months: int
+    max_loss_duration_months: int
     annualized_volatility: float
     history: pd.DataFrame
 
@@ -66,6 +67,7 @@ class SimulationResult:
             "xirr_real_net": self.xirr_real_net,
             "max_drawdown": self.max_drawdown,
             "max_underwater_months": self.max_underwater_months,
+            "max_loss_duration_months": self.max_loss_duration_months,
             "annualized_volatility": self.annualized_volatility,
         }
 
@@ -83,6 +85,19 @@ def _calculate_underwater_duration(drawdown_series: pd.Series) -> int:
             current_duration = 0
     return max_duration
 
+def _calculate_loss_duration(gross_values: np.ndarray, invested_capital: np.ndarray) -> int:
+    """Calcola la massima sequenza di mesi consecutivi in cui il valore di portafoglio 
+    è rimasto inferiore al totale del capitale versato fino a quel momento."""
+    max_duration = 0
+    current_duration = 0
+    for val, inv in zip(gross_values, invested_capital):
+        if val < inv:
+            current_duration += 1
+            if current_duration > max_duration:
+                max_duration = current_duration
+        else:
+            current_duration = 0
+    return max_duration
 
 def simulate_portfolio(
     dates: pd.Series,
@@ -214,6 +229,9 @@ def simulate_portfolio(
     max_dd = float(dd_series.min())
     max_underwater = _calculate_underwater_duration(dd_series)
 
+    # Calcolo della massima durata consecutiva in perdita sul capitale versato
+    max_loss_dur = _calculate_loss_duration(gross_values, cumulative_invested)
+
     # Volatilità annualizzata della strategia al netto del TER
     nav_returns = nav_per_share.pct_change()
     ann_vol = calculate_annualized_volatility(nav_returns)
@@ -301,6 +319,7 @@ def simulate_portfolio(
         xirr_real_net=round(xirr_real, 4),
         max_drawdown=round(max_dd, 4),
         max_underwater_months=max_underwater,
+        max_loss_duration_months=max_loss_dur,
         annualized_volatility=round(ann_vol, 4),
         history=history_df,
     )
