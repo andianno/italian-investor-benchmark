@@ -42,7 +42,8 @@ class SimulationResult:
     xirr_real_net: float
     max_drawdown: float
     max_underwater_months: int
-    max_loss_duration_months: int
+    max_nominal_loss_months: int  # <-- Perdita sul capitale nominale versato
+    max_real_loss_months: int  # <-- Perdita sul potere d'acquisto reale versato
     annualized_volatility: float
     history: pd.DataFrame
 
@@ -67,7 +68,8 @@ class SimulationResult:
             "xirr_real_net": self.xirr_real_net,
             "max_drawdown": self.max_drawdown,
             "max_underwater_months": self.max_underwater_months,
-            "max_loss_duration_months": self.max_loss_duration_months,
+            "max_nominal_loss_months": self.max_nominal_loss_months,
+            "max_real_loss_months": self.max_real_loss_months,
             "annualized_volatility": self.annualized_volatility,
         }
 
@@ -85,18 +87,25 @@ def _calculate_underwater_duration(drawdown_series: pd.Series) -> int:
             current_duration = 0
     return max_duration
 
-def _calculate_loss_duration(gross_values: np.ndarray, invested_capital: np.ndarray) -> int:
-    """Calcola la massima sequenza di mesi consecutivi in cui il valore di portafoglio 
-    è rimasto inferiore al totale del capitale versato fino a quel momento."""
+def _calculate_loss_duration(
+        values: np.ndarray, thresholds: np.ndarray
+    ) -> int:
+    """Calcola la massima sequenza di mesi consecutivi in cui il portafoglio
+
+    è rimasto al di sotto del capitale totale versato fino a quel mese.
+    """
     max_duration = 0
     current_duration = 0
-    for val, inv in zip(gross_values, invested_capital):
-        if val < inv:
+
+    for val, thresh in zip(values, thresholds):
+        # Condizione di perdita sul capitale versato
+        if val < thresh:
             current_duration += 1
             if current_duration > max_duration:
                 max_duration = current_duration
         else:
             current_duration = 0
+
     return max_duration
 
 def simulate_portfolio(
@@ -229,8 +238,15 @@ def simulate_portfolio(
     max_dd = float(dd_series.min())
     max_underwater = _calculate_underwater_duration(dd_series)
 
-    # Calcolo della massima durata consecutiva in perdita sul capitale versato
-    max_loss_dur = _calculate_loss_duration(gross_values, cumulative_invested)
+    # 5.1 Durata in perdita nominale (V_t < Somma contanti versati)
+    max_nom_loss = _calculate_loss_duration(gross_values, cumulative_invested)
+
+    # 5.2 Durata in perdita reale (V_reale_t < Somma potere d'acquisto versato in base t0)
+    real_contributions = contributions * (cpi_0 / cpi_clean.values)
+    cumulative_real_invested = np.cumsum(real_contributions)
+    max_real_loss = _calculate_loss_duration(
+        real_values, cumulative_real_invested
+    )
 
     # Volatilità annualizzata della strategia al netto del TER
     nav_returns = nav_per_share.pct_change()
@@ -319,7 +335,8 @@ def simulate_portfolio(
         xirr_real_net=round(xirr_real, 4),
         max_drawdown=round(max_dd, 4),
         max_underwater_months=max_underwater,
-        max_loss_duration_months=max_loss_dur,
+        max_nominal_loss_months=max_nom_loss,
+        max_real_loss_months=max_real_loss,
         annualized_volatility=round(ann_vol, 4),
         history=history_df,
     )

@@ -87,12 +87,16 @@ def print_portfolio_comparison(
         ("XIRR (MWR) Reale Netto", [_fmt_pct(r.xirr_real_net) for r in results]),
         ("Max Drawdown della Quota", [_fmt_pct(r.max_drawdown) for r in results]),
         (
-            "Max Durata Underwater (mesi)",
+            "Max Underwater Quota (Asset)",
             [f"{r.max_underwater_months} mesi" for r in results],
         ),
         (
-            "Max in Perdita sul Versato (Conto)",
-            [f"{r.max_loss_duration_months} mesi" for r in results],
+            "Max in Perdita Nominale (Conto)",
+            [f"{r.max_nominal_loss_months} mesi" for r in results],
+        ),
+        (
+            "Max in Perdita Reale (Inflazione)",
+            [f"{r.max_real_loss_months} mesi" for r in results],
         ),
         (
             "Volatilità Annualizzata",
