@@ -12,6 +12,7 @@ env/
 # Dati di cache (il codice deve poterli rigenerare da data/raw)
 data/cache/
 *.parquet
+data/raw
 
 # Output grafici generati
 output/

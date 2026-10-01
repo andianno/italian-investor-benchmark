@@ -1,58 +1,59 @@
 # Italian Investor Benchmark: SWDA vs VWCE vs VALL
 
-Simulatore quantitativo e probabilistico in Python per l'analisi del rischio e dei rendimenti reali a lungo termine (2000–2025) delle tre principali strategie passive ad accumulazione su azionario globale:
-
-1. **Sviluppati Large & Mid Cap** — Proxy di **iShares Core MSCI World (SWDA)**.
-2. **Globale Large & Mid Cap (Sviluppati + Emergenti)** — Proxy di **Vanguard FTSE All-World (VWCE)**.
-3. **Globale All-Cap (Sviluppati + Emergenti + Small Cap)** — Proxy di **Vanguard FTSE Global All Cap (VALL)**.
-
-Il progetto supera l'arbitrarietà dei tradizionali backtest su singolo percorso (*starting point bias* del 2000), focalizzandosi interamente sulla **distribuzione empirica a finestre mobili (*Rolling Windows*)** al netto dell'**inflazione italiana reale (CPI FOI)** e misurando non solo il rendimento a scadenza, ma il **tempo effettivo trascorso con un potere d'acquisto inferiore al capitale versato**.
+> ⚠️ **DISCLAIMER**: Questo progetto nasce esclusivamente per **scopo didattico e curiosità personale**.  
+> **Non sono un consulente finanziario** e nessuna informazione, dato, metrica o tabella presente in questo repository costituisce o intende costituire una consulenza finanziaria, un consiglio di investimento o una sollecitazione al pubblico risparmio.  
+> Investire sui mercati finanziari comporta il rischio concreto di perdita totale o parziale del capitale. L'autore declina espressamente ogni responsabilità per qualsiasi decisione o perdita economica derivante dall'uso o dall'interpretazione dei dati e del codice qui contenuti. I rendimenti passati non sono in alcun modo garanzia di rendimenti futuri.
 
 ---
 
-## 1. Il Dilemma dell'Investitore Globale
+Simulatore e strumento di esplorazione quantitativa in Python per analizzare il comportamento storico (2000–2025) di tre tipiche strategie azionarie globali ad accumulazione:
 
-Chi alloca il proprio patrimonio sull'azionario globale si trova tipicamente davanti a tre livelli di diversificazione:
+1. **Sviluppati Large & Mid Cap** (approssimazione di strumenti come **SWDA** / iShares Core MSCI World).
+2. **Tutto il Mondo Large & Mid Cap** (approssimazione di strumenti come **VWCE** / Vanguard FTSE All-World).
+3. **Tutto il Mondo All-Cap con Small Cap** (approssimazione di strumenti come **VALL** / Vanguard FTSE Global All Cap).
 
-| Strategia / Proxy | Benchmark di Riferimento | Copertura Geografica | Segmento di Capitalizzazione | Tesi di Investimento |
-| :--- | :--- | :--- | :--- | :--- |
-| **SWDA** *(MSCI World)* | MSCI World Net Total Return EUR | Paesi Sviluppati (~23 paesi) | Large & Mid Cap (~85% mercato) | Massima efficienza, governance consolidata, zero rischio giurisdizionale e di controllo dei capitali degli emergenti. |
-| **VWCE** *(FTSE All-World)* | MSCI ACWI Net Total Return EUR *(proxy)* | Sviluppati + Emergenti (~47 paesi) | Large & Mid Cap (~85-90% mercato) | Neutralità geografica globale; esposizione alla crescita economica e demografica dei mercati emergenti. |
-| **VALL** *(FTSE All Cap)* | MSCI ACWI IMI Net Total Return EUR *(proxy)* | Sviluppati + Emergenti (~47 paesi) | Large, Mid & **Small Cap** (~99% mercato) | Massima diversificazione teorica; cattura del premio dimensionale (*Size Premium* del modello Fama-French). |
+Il focus del progetto non è il classico backtest lineare da punto a punto, ma l'analisi empirica a **finestre mobili (*Rolling Windows*)** per osservare la dispersione dei rendimenti e stimare **per quanti mesi consecutivi il potere d'acquisto dell'investitore italiano è rimasto inferiore al capitale versato**, tenendo conto dell'inflazione italiana (CPI).
 
 ---
 
-## 2. Metodologia e Dati
+## 1. I Tre Livelli di Diversificazione Analizzati
 
-### 2.1 Isolamento delle Variabili (*Ceteris Paribus*)
-Per evitare discrepanze dovute a metodologie di calcolo eterogenee di provider concorrenti (FTSE vs MSCI):
-* Tutti e tre i panieri appartengono alla medesima famiglia **MSCI Net Total Return (NTR)** in **EUR** con dividendi netti reinvestiti.
-* **Periodo Comune Validato:** **Dicembre 2000 – Marzo 2025** (292 mesi sequenziali senza discontinuità).
-* **Inflazione Italiana:** Serie storica mensile CPI All Items da FRED St. Louis (`ITACPIALLMINMEI`).
+| Indice Simulato | Benchmark Reale Usato | ETF di Mercato Tipici | Copertura e Caratteristiche |
+| :--- | :--- | :--- | :--- |
+| **World** | MSCI World Net Total Return EUR | SWDA, LCWD | Paesi Sviluppati (~23 nazioni), Large & Mid Cap. |
+| **ACWI** | MSCI ACWI Net Total Return EUR | VWCE, SPYI, IUSQ | Sviluppati + Emergenti (~47 nazioni), Large & Mid Cap. |
+| **ACWI IMI** | MSCI ACWI IMI Net Total Return EUR | VALL, V3AA, IMIE | Sviluppati + Emergenti + **Small Cap** (~99% del mercato quotato). |
 
-### 2.2 Il Superamento dello *Starting Point Bias*
-Un singolo backtest dal 2000 al 2025 misura solo la fortuna o la sfortuna di aver investito in quel dato mese. Il simulatore analizza invece l'**intera popolazione di finestre mobili sovrapposte**:
-* **5 Anni (60 mesi):** 232 finestre storiche simulate.
-* **10 Anni (120 mesi):** 172 finestre storiche simulate.
-* **15 Anni (180 mesi):** 112 finestre storiche simulate.
-* **20 Anni (240 mesi):** 52 finestre storiche simulate.
-
-### 2.3 Metriche di Rischio Reale
-Per ogni finestra mobile $H$, oltre al **CAGR Reale** (calcolato tramite l'equazione esatta di Fisher), il motore traccia mese per mese la traiettoria del capitale reale:
-
-$$V_k^{\text{reale}} = \frac{P_{t_0 + k}}{P_{t_0}} \times \frac{\text{CPI}_{t_0}}{\text{CPI}_{t_0 + k}} \quad \text{con } k \in [1, H]$$
-
-* **% Tempo in Perdita Reale:** percentuale di mesi della finestra trascorsi con $V_k^{\text{reale}} < 1.0$ (potere d'acquisto intaccato rispetto al carrello della spesa di partenza).
-* **Max Striscia Consecutiva Sott'Acqua:** durata massima continua (in mesi) trascorsa in perdita reale prima di un recupero.
-* **Peggior Drawdown Reale:** calo percentuale massimo calcolato sui picchi reali all'interno dell'orizzonte.
+### Nota sui Provider (MSCI vs FTSE)
+Gli ETF di Vanguard (come VWCE o VALL) replicano benchmark dell'emittente FTSE. In questa simulazione viene utilizzata l'intera famiglia **MSCI Net Total Return** esclusivamente per garantire uniformità e coerenza metodologica nei dati (stessi criteri di reinvestimento dividendi e stesse metodologie di calcolo).  
+*Non si tratta di repliche identiche*: ad esempio, la Corea del Sud è considerata paese sviluppato per FTSE ed emergente per MSCI. Gli indici usati vanno intesi come **proxy comparativi indicativi** e non come cloni perfetti degli ETF commerciali.
 
 ---
 
-## 3. Risultati Empirici e Conclusioni
+## 2. Metodologia, Dati e Limiti del Modello
 
-Dalla simulazione su tutte le finestre storiche disponibili (2000–2025) emergono i seguenti risultati aggregati:
+### 2.1 Fonte Dati
+* **Serie Azionarie:** Serie mensili ufficiali MSCI Net Total Return (NTR) in Euro (periodo validato: **Dicembre 2000 – Marzo 2025**, 292 mesi).
+* **Inflazione Italiana:** Indice mensile dei prezzi al consumo per l'Italia (CPI All Items) ricavato da FRED St. Louis (`ITACPIALLMINMEI`).
 
-| Orizzonte Temporale | Benchmark / Indice | Peggior CAGR | Mediana (P50) | Miglior CAGR | P(Reale < 0) | Max % Tempo Rosso | Peggior DD Reale |
+### 2.2 Costi e Tassazione (Approssimazioni adottate)
+* **TER:** Decurtato mensilmente sul valore quota (valori indicativi di riferimento impostabili in `config.py`, es. 0.20% per World, 0.22% per ACWI, 0.17% per IMI).
+* **Imposta di Bollo (0,20% annuo):** Detratta al 31 dicembre di ogni anno direttamente tramite **riduzione proporzionale del numero di quote**, simulando l'assenza di liquidità libera sul conto titoli.
+* **Capital Gain (26%):** Considerato a titolo indicativo al momento della liquidazione finale sul guadagno nominale maturato.
+* **Equazione di Fisher:** Il CAGR reale è calcolato deflazionando il rendimento nominale con l'inflazione cumulata del periodo:
+  $$1 + r_{\text{reale}} = \frac{1 + r_{\text{nominale}}}{1 + i_{\text{inflazione}}}$$
+
+### 2.3 Limiti Statistici da Tenere a Mente
+* **Orizzonte temporale limitato:** 24 anni di dati (292 mesi) rappresentano un campione storico ridotto. Le finestre mobili a 15 e 20 anni sono fortemente sovrapposte tra loro (condividono quasi tutti i mesi) e riflettono essenzialmente **le peculiarità di quel singolo ciclo storico**, non una verità asintotica o universale.
+* I calcoli qui riportati non pretendono di avere significatività econometrica formale, ma offrono una fotografia di ciò che è accaduto empiricamente in quello specifico intervallo.
+
+---
+
+## 3. Risultati Empirici (Finestre Mobili 2000–2025)
+
+Simulando tutte le finestre mobili storiche disponibili (a 5, 10, 15 e 20 anni), questi sono i numeri prodotti dal motore di calcolo:
+
+| Orizzonte | Benchmark / Indice | Peggior CAGR Reale | Mediana (P50) Reale | Miglior CAGR Reale | P(Reale < 0) | Max % Tempo in Perdita Reale | Peggior DD Reale |
 | :--- | :--- | :---: | :---: | :---: | :---: | :---: | :---: |
 | **5 Anni** (60 mesi) | **MSCI World (SWDA)** | -7,36% | +7,51% | +15,86% | 27,2% | 100,0% (60m) | -50,95% |
 | *232 finestre* | **MSCI ACWI (VWCE)** | -6,85% | +7,62% | +15,47% | 24,6% | 100,0% (60m) | -50,75% |
@@ -67,60 +68,51 @@ Dalla simulazione su tutte le finestre storiche disponibili (2000–2025) emergo
 | *52 finestre* | **MSCI ACWI (VWCE)** | +2,98% | +6,00% | +7,21% | 0,0% | 67,5% (162m) | -55,48% |
 | | **MSCI ACWI IMI (VALL)** | +3,36% | +6,19% | +7,26% | 0,0% | 66,2% (159m) | -53,34% |
 
-### Lezioni Chiave per l'Investitore
-
-1. **La Mediana Converge (~6,1% Reale Annuo):**  
-   Su orizzonti di 15 e 20 anni, le mediane storiche dei tre strumenti sono essenzialmente indistinguibili. L'aggiunta di emergenti e small cap non incrementa il rendimento atteso tipico.
-2. **La Diversificazione Globale (VALL) Alza il Pavimento nei Periodi Bui:**  
-   Nei peggiori scenari storici, VALL sovraperforma sensibilmente l'MSCI World:
-   * A 10 anni attenua il caso peggiore da **-3,61%** a **-2,19% annuo** (+1,42% all'anno di protezione reale).
-   * A 15 anni quasi raddoppia il rendimento minimo (**+1,19%** vs **+0,63% reale**).
-   * Il peggior calo reale dal picco si ferma al **-53,34%** rispetto al **-57,44%** di World.
-3. **MSCI World Ha la Coda Destra Più Spinta (Massimizza i Cicli Favorevoli):**  
-   Nei cicli in cui dominano le grandi società americane e i monopoli tecnologici consolidati, l'assenza di mercati periferici spinge maggiormente verso l'alto (miglior CAGR decennale a +13,36% vs +12,96%).
-4. **Il Paradosso dei 15 Anni:**  
-   Sebbene la probabilità di perdita reale a 15 anni sia storicamente dello **0,0%**, nello scenario peggiore l'investitore ha trascorso il **91,1% del tempo (164 mesi su 180, oltre 13 anni e mezzo)** con un potere d'acquisto inferiore ai soldi versati, tornando in guadagno reale solo in prossimità della scadenza.
+### Spunti di Riflessione
+1. **La mediana storica è quasi coincidente:** Su 15 e 20 anni, il rendimento reale mediano dei tre indici si colloca stabilmente attorno al **+6,0% – +6,2% annuo**. Aggiungere emergenti e small cap non ha cambiato significativamente il rendimento tipico centrale in questo periodo.
+2. **Comportamento nelle code:**
+   * **Nello scenario peggiore (drawdown severi):** L'indice ACWI IMI ha contenuto meglio i minimi (a 10 anni -2,19% vs -3,61% di World; a 15 anni +1,19% vs +0,63%).
+   * **Nello scenario migliore (fasi di boom):** L'MSCI World ha registrato i massimi più alti nei decenni favorevoli ai titoli occidentali e alle mega-cap.
+3. **Il fattore psicologico del tempo sott'acqua:** Anche a 15 anni, dove tutte le finestre si sono chiuse con un guadagno reale finale ($P(\text{Reale} < 0) = 0\%$), nel caso peggiore (ingresso fine 2000) si è passati circa il **90% del tempo (oltre 13 anni)** con un potere d'acquisto inferiore a quello iniziale prima di tornare stabilmente in attivo.
 
 ---
 
-## 4. Architettura del Repository
-
-La struttura del progetto separa nettamente caricamento dati, logica finanziaria e visualizzazione:
+## 4. Struttura del Progetto
 
 ```
 italian-investor-benchmark/
 │
 ├── data/
-│   ├── raw/                   # Dataset originali MSCI (.xls)
-│   └── cache/                 # File Parquet compressi e preprocessati
+│   ├── raw/                   # File originali scaricati da MSCI (esclusi da git)
+│   └── cache/                 # File Parquet generati ad accesso rapido
 │
 ├── src/
-│   ├── config.py              # Costanti globali, aliquote fiscali e parametri orizzonti
+│   ├── config.py              # Costanti contabili, parametri simulazione e percorsi
 │   ├── data/
-│   │   ├── msci_loader.py     # Ingestion, parsing e inner-join delle serie storiche MSCI
-│   │   └── fred_loader.py     # Download e caching dell'inflazione CPI Italia da FRED
+│   │   ├── msci_loader.py     # Parser e allineamento date delle serie MSCI
+│   │   └── fred_loader.py     # Scaricamento e caching CPI Italia da FRED
 │   ├── engine/
-│   │   ├── metrics.py         # Funzioni pure: CAGR, equazione di Fisher, Drawdown, XIRR
-│   │   ├── portfolio.py       # Motore contabile PIC & PAC con fiscalità italiana (bollo e capital gain)
-│   │   └── statistics.py      # Motore statistico a finestre mobili (rendimenti e durata perdite)
+│   │   ├── metrics.py         # Formule finanziarie pure (CAGR, Fisher, Drawdown, XIRR)
+│   │   ├── portfolio.py       # Logica contabile di simulazione PIC/PAC con costi e bollo
+│   │   └── statistics.py      # Calcolo metriche su finestre mobili e permanenza in perdita
 │   └── visualizer/
-│       ├── tables.py          # Formattazione tabelle comparative a terminale
-│       └── charts.py          # Generazione grafici ad alta risoluzione (output/)
+│       ├── tables.py          # Formattazione tabelle a terminale
+│       └── charts.py          # Esportazione grafici ad alta risoluzione (cartella output/)
 │
-├── tests/                     # Suite di unit test automatizzati (pytest)
+├── tests/                     # Suite di test unitari con pytest
 │   ├── test_fred_loader.py
 │   ├── test_metrics.py
 │   ├── test_msci_loader.py
 │   ├── test_portfolio.py
 │   └── test_statistics.py
 │
-├── output/                    # Grafici PNG generati a runtime (300 DPI)
+├── output/                    # Grafici salvati a fine esecuzione
 │   ├── rolling_cagr_distribution.png
 │   └── rolling_real_loss_time.png
 │
 ├── pyproject.toml
 ├── requirements.txt
-├── main.py                    # Entrypoint dell'applicazione
+├── main.py                    # Script di avvio
 └── README.md
 ```
 
@@ -129,10 +121,10 @@ italian-investor-benchmark/
 ## 5. Installazione ed Utilizzo
 
 ### Prerequisiti
-* Python **3.10** o superiore (sviluppato e testato su Python 3.12).
+* Python **3.10+**
 * Un ambiente virtuale raccomandato (`venv`).
 
-### Setup
+### Setup Rapido
 
 ```bash
 # 1. Clona il repository
@@ -147,28 +139,26 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-### Esecuzione della Suite di Test
-
-Per verificare l'integrità delle funzioni matematiche, contabili e statistiche:
-
+### Esecuzione dei Test
+Per verificare la coerenza matematica e contabile delle funzioni:
 ```bash
 pytest -v
 ```
 
-### Esecuzione del Simulatore
-
-Per eseguire l'analisi completa a finestre mobili e generare i grafici:
-
+### Avvio del Simulatore
+Per calcolare le finestre mobili e generare i grafici:
 ```bash
 python main.py
 ```
 
-I grafici esportati in `output/` comprendono:
-* `rolling_cagr_distribution.png`: Boxplot della distribuzione dei rendimenti reali netti per orizzonte (5, 10, 15, 20 anni).
-* `rolling_real_loss_time.png`: Istogramma della percentuale di tempo trascorsa in perdita reale rispetto all'inflazione (Scenario Peggiore vs Mediana).
+I grafici ad alta risoluzione verranno salvati automaticamente nella cartella `output/`:
+* `output/rolling_cagr_distribution.png` (Boxplot della distribuzione dei rendimenti reali)
+* `output/rolling_real_loss_time.png` (Confronto sulla percentuale di tempo trascorsa in perdita reale)
 
 ---
 
-## 6. Licenza
+## 6. Dati e Licenze
 
-Distribuito sotto licenza MIT. I dati delle serie storiche degli indici appartengono a MSCI Inc.; i dati sull'indice dei prezzi al consumo (CPI) appartengono a Istat / FRED St. Louis.
+* **Codice:** Rilasciato sotto licenza MIT.
+* **Dati Indici:** Proprietà di MSCI Inc. I file grezzi non sono ridistribuiti nel repository per rispetto delle condizioni d'uso del fornitore.
+* **Dati Inflazione:** Istat / FRED (Federal Reserve Bank of St. Louis).
