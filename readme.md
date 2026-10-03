@@ -37,7 +37,7 @@ Gli ETF di Vanguard (come VWCE o VALL) replicano benchmark dell'emittente FTSE. 
 * **Inflazione Italiana:** Indice mensile dei prezzi al consumo per l'Italia (CPI All Items) ricavato da FRED St. Louis (`ITACPIALLMINMEI`).
 
 ### 2.2 Costi e Tassazione (Approssimazioni adottate)
-* **TER:** Decurtato mensilmente sul valore quota (valori indicativi di riferimento impostabili in `config.py`, es. 0.20% per World, 0.22% per ACWI, 0.17% per IMI).
+* **TER:** Decurtato mensilmente sul valore quota (valori indicativi di riferimento impostabili in `config.py`, es. 0.20% per World, 0.14% per ACWI, 0.07% per IMI).
 * **Imposta di Bollo (0,20% annuo):** Detratta al 31 dicembre di ogni anno direttamente tramite **riduzione proporzionale del numero di quote**, simulando l'assenza di liquidità libera sul conto titoli.
 * **Capital Gain (26%):** Considerato a titolo indicativo al momento della liquidazione finale sul guadagno nominale maturato.
 * **Equazione di Fisher:** Il CAGR reale è calcolato deflazionando il rendimento nominale con l'inflazione cumulata del periodo:
@@ -159,6 +159,5 @@ I grafici ad alta risoluzione verranno salvati automaticamente nella cartella `o
 
 ## 6. Dati e Licenze
 
-* **Codice:** Rilasciato sotto licenza MIT.
 * **Dati Indici:** Proprietà di MSCI Inc. I file grezzi non sono ridistribuiti nel repository per rispetto delle condizioni d'uso del fornitore.
 * **Dati Inflazione:** Istat / FRED (Federal Reserve Bank of St. Louis).
