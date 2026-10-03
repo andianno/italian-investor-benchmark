@@ -26,6 +26,13 @@ class ETFConfig:
     acwi_imi_ter: float = 0.0007  # Vanguard FTSE Global All Cap (0.07%)
 
 
+class BankFundConfig:
+    """Costi annui di gestione (TER) per fondi bancari attivi retail di sportello."""
+
+    active_fund_ter: float = 0.0200  # 2.00% annuo (es. BancoPosta Azionario Internazionale)
+
+
+
 class SimulationConfig:
     """Parametri per simulazioni di portafoglio e analisi quantitative."""
 
