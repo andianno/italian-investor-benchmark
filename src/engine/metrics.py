@@ -1,9 +1,11 @@
 """Metriche e formule finanziarie quantitative per l'analisi di portafoglio."""
 
 from typing import Union
+
 import numpy as np
 import pandas as pd
 from scipy import optimize
+
 
 
 def calculate_cagr(start_value: float, end_value: float, years: float) -> float:
@@ -95,3 +97,39 @@ def calculate_xirr(
             return float(rate)
         except Exception:
             return 0.0
+
+
+def apply_ter_to_prices(prices: pd.Series, ter_annual: float) -> pd.Series:
+    """Simula la serie storica dei prezzi/NAV decurtata del TER annuo.
+
+    Decurtazione su base geometrica mensile:
+    drag_mensile = (1 + TER)^(1/12) - 1
+    NAV_t = Prezzo_t * (1 - drag_mensile)^t
+
+    Parameters
+    ----------
+    prices : pd.Series
+        Serie delle quotazioni lorde dell'indice o benchmark.
+    ter_annual : float
+        Total Expense Ratio annuo (es. 0.0020 per lo 0.20%, 0.0200 per il 2.00%).
+
+    Returns
+    -------
+    pd.Series
+        Serie dei prezzi al netto dell'impatto cumulato del TER.
+
+    Raises
+    ------
+    ValueError
+        Se ter_annual < 0.
+    """
+    if ter_annual < 0.0:
+        raise ValueError("Il TER non può essere negativo.")
+    prices_s = pd.Series(prices, dtype=float)
+    n_months = len(prices_s)
+    if n_months == 0:
+        return prices_s.copy()
+    monthly_ter_drag = (1.0 + ter_annual) ** (1.0 / 12.0) - 1.0
+    drag_factors = (1.0 - monthly_ter_drag) ** np.arange(n_months)
+    return pd.Series(prices_s.values * drag_factors, index=prices_s.index)
+
