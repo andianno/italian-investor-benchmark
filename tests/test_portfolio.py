@@ -109,3 +109,39 @@ def test_invalid_parameters():
     with pytest.raises(ValueError):
         # Meno di 2 mesi
         simulate_portfolio(dates[:1], prices[:1], cpi[:1])
+
+
+def test_history_net_values():
+    """Verifica che history_df contenga net_nominal_value e net_real_value coerenti."""
+    dates = pd.Series([pd.Timestamp("2021-01-31"), pd.Timestamp("2021-06-30")])
+    prices = pd.Series([100.0, 150.0])
+    cpi = pd.Series([100.0, 105.0])
+
+    res = simulate_portfolio(
+        dates=dates,
+        prices=prices,
+        cpi=cpi,
+        mode="PIC",
+        initial_capital=100.0,
+        ter_annual=0.0,
+        bollo_rate=0.0,
+        capital_gain_rate=0.26,
+    )
+
+    df_h = res.history
+    assert "net_nominal_value" in df_h.columns
+    assert "net_real_value" in df_h.columns
+
+    # Al tempo t=0, nessun capital gain
+    assert df_h["net_nominal_value"].iloc[0] == 100.0
+    assert df_h["net_real_value"].iloc[0] == 100.0
+
+    # Al tempo finale: 150 lordo, 50 guadagno -> 13 tassa -> 137 netto nominale
+    assert pytest.approx(df_h["net_nominal_value"].iloc[-1]) == 137.0
+    assert pytest.approx(res.final_nominal_net) == 137.0
+
+    # Netto reale: 137 * (100 / 105) = ~130.476 (res.final_real_net è arrotondato a 2 decimali)
+    expected_real_net = 137.0 * (100.0 / 105.0)
+    assert pytest.approx(df_h["net_real_value"].iloc[-1]) == expected_real_net
+    assert pytest.approx(res.final_real_net, abs=1e-2) == expected_real_net
+

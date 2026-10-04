@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import Dict
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 
 from src.config import OUTPUT_DIR
 from src.engine.statistics import RollingWindowStats
@@ -144,3 +145,131 @@ def plot_rolling_loss_time(
     fig.tight_layout()
     fig.savefig(output_path)
     plt.close(fig)
+
+
+def plot_etf_vs_bank_fund_growth(
+    df_etf: "pd.DataFrame",
+    df_bank: "pd.DataFrame",
+    output_path: Path = OUTPUT_DIR / "etf_vs_bank_fund_growth.png",
+    etf_label: str = "ETF Passivo (TER 0.20%)",
+    bank_label: str = "Fondo Bancario Attivo (TER 2.00%)",
+) -> None:
+    """Grafico comparativo della crescita patrimoniale (Base 100) dal 2000 ad oggi.
+
+    Mostra l'evoluzione temporale su scala lineare al netto di TER, imposta di bollo
+    annuale (0,20% al 31/12) e tassazione capital gain (26% al realizzo):
+    - ETF Nominale Netto (linea continua)
+    - ETF Reale Netto (linea tratteggiata)
+    - Fondo Bancario Nominale Netto (linea continua)
+    - Fondo Bancario Reale Netto (linea tratteggiata)
+    """
+    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    fig, ax = plt.subplots(figsize=(13, 7), dpi=300)
+
+    dates = pd.to_datetime(df_etf["date"])
+
+    # Curve ETF
+    etf_nom = df_etf["net_nominal_value"]
+    etf_real = df_etf["net_real_value"]
+
+    # Curve Fondo Bancario
+    bank_nom = df_bank["net_nominal_value"]
+    bank_real = df_bank["net_real_value"]
+
+    # Valori finali per legenda
+    etf_nom_end = etf_nom.iloc[-1]
+    etf_real_end = etf_real.iloc[-1]
+    bank_nom_end = bank_nom.iloc[-1]
+    bank_real_end = bank_real.iloc[-1]
+
+    # Tracciamento curve
+    color_etf = "#1f77b4"  # Blu
+    color_bank = "#d62728"  # Rosso
+
+    ax.plot(
+        dates,
+        etf_nom,
+        color=color_etf,
+        linewidth=2.4,
+        label=f"{etf_label} - Nominale (Fine: {etf_nom_end:.1f})",
+    )
+    ax.plot(
+        dates,
+        etf_real,
+        color=color_etf,
+        linewidth=2.0,
+        linestyle="--",
+        label=f"{etf_label} - Reale Netto Inflazione (Fine: {etf_real_end:.1f})",
+    )
+    ax.plot(
+        dates,
+        bank_nom,
+        color=color_bank,
+        linewidth=2.4,
+        label=f"{bank_label} - Nominale (Fine: {bank_nom_end:.1f})",
+    )
+    ax.plot(
+        dates,
+        bank_real,
+        color=color_bank,
+        linewidth=2.0,
+        linestyle="--",
+        label=f"{bank_label} - Reale Netto Inflazione (Fine: {bank_real_end:.1f})",
+    )
+
+    # Linea orizzontale di pareggio (Capitale iniziale = 100)
+    ax.axhline(
+        100,
+        color="#7f7f7f",
+        linestyle=":",
+        linewidth=1.2,
+        alpha=0.8,
+        label="Pareggio Capitale Iniziale (100)",
+    )
+
+    # Area di valore perso tra nominale ETF e nominale Fondo
+    ax.fill_between(
+        dates,
+        bank_nom,
+        etf_nom,
+        color="#ff7f0e",
+        alpha=0.12,
+        label="Costi cumulati erosi dalla gestione attiva",
+    )
+
+    ax.set_title(
+        "Confronto Performance Storica (2000-2025): ETF Passivo vs Fondo Bancario Attivo\n"
+        "MSCI World Net Total Return | Base 100 | Netto TER, Bollo Dossier Titoli (0.20%/anno) e Capital Gain (26%)",
+        fontsize=12,
+        fontweight="bold",
+        pad=15,
+    )
+    ax.set_xlabel("Anno", fontsize=11)
+    ax.set_ylabel("Valore Netto di Realizzo (Base 100)", fontsize=11)
+    ax.set_ylim(bottom=0)
+    ax.legend(loc="upper left", frameon=True, framealpha=0.9, fontsize=9.5)
+
+    # Box statistico riassuntivo in basso a destra
+    lost_nominal_pct = ((etf_nom_end - bank_nom_end) / etf_nom_end) * 100.0
+    stats_text = (
+        f"Impatto dei Costi Bancari:\n"
+        f"• Capitale finale ETF Nominale: {etf_nom_end:.1f}\n"
+        f"• Capitale finale Fondo Nominale: {bank_nom_end:.1f}\n"
+        f"• Capitale eroso dal TER: -{lost_nominal_pct:.1f}%\n"
+        f"• Potere d'acquisto reale Fondo: {bank_real_end:.1f} (vs {etf_real_end:.1f} ETF)"
+    )
+    ax.text(
+        0.98,
+        0.05,
+        stats_text,
+        transform=ax.transAxes,
+        fontsize=9,
+        verticalalignment="bottom",
+        horizontalalignment="right",
+        bbox=dict(boxstyle="round,pad=0.6", facecolor="white", edgecolor="#cccccc", alpha=0.9),
+    )
+
+    fig.tight_layout()
+    fig.savefig(output_path)
+    plt.close(fig)
+
