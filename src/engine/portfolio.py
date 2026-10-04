@@ -288,6 +288,12 @@ def simulate_portfolio(
     xirr_net = calculate_xirr(cf_net[active_mask], dates_clean[active_mask])
     xirr_real = calculate_xirr(cf_real[active_mask], dates_clean[active_mask])
 
+    # Valore netto di realizzo mensile comprensivo di eventuale capital gain maturato
+    profits_series = np.maximum(0.0, gross_values - cumulative_invested)
+    taxes_series = profits_series * capital_gain_rate
+    net_values = gross_values - taxes_series
+    net_real_values = net_values * (cpi_0 / cpi_clean.values)
+
     history_df = pd.DataFrame(
         {
             "date": dates_clean,
@@ -297,6 +303,8 @@ def simulate_portfolio(
             "nav_per_share": nav_per_share,
             "gross_value": gross_values,
             "real_value": real_values,
+            "net_nominal_value": net_values,
+            "net_real_value": net_real_values,
             "stamp_duty_paid": stamp_duty_paid,
             "drawdown": dd_series.values,
         }
