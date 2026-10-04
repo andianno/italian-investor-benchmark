@@ -42,8 +42,15 @@ def calculate_rolling_returns(
     prices: pd.Series,
     cpi: pd.Series,
     horizon_years: int = 5,
+    ter_annual: float = 0.0,
+    bollo_rate: float = 0.0,
+    capital_gain_rate: float = 0.0,
 ) -> RollingWindowStats:
-    """Calcola rendimenti e durata della perdita reale su tutte le finestre mobili di ampiezza H."""
+    """Calcola rendimenti e durata della perdita reale su tutte le finestre mobili di ampiezza H.
+
+    Supporta l'integrazione opzionale del drag del TER annuo, dell'imposta di bollo (0,20%
+    al 31 dicembre con vendita quote) e della tassazione al 26% sulle plusvalenze al realizzo.
+    """
     window_months = horizon_years * 12
     n_observations = len(prices)
 
@@ -55,7 +62,16 @@ def calculate_rolling_returns(
 
     prices_arr = np.asarray(prices, dtype=float)
     cpi_arr = np.asarray(cpi, dtype=float)
-    dates_arr = pd.to_datetime(dates).values
+    dt_idx = pd.DatetimeIndex(dates)
+    dates_arr = dt_idx.values
+    months_arr = dt_idx.month.values
+
+    # Pre-calcolo drag geometrico mensile del TER su orizzonte della finestra
+    if ter_annual > 0.0:
+        monthly_ter_drag = (1.0 + ter_annual) ** (1.0 / 12.0) - 1.0
+        ter_factors = (1.0 - monthly_ter_drag) ** np.arange(window_months + 1)
+    else:
+        ter_factors = np.ones(window_months + 1, dtype=float)
 
     records = []
     n_windows = n_observations - window_months
@@ -63,24 +79,43 @@ def calculate_rolling_returns(
     for start_idx in range(n_windows):
         end_idx = start_idx + window_months
 
-        p_start = prices_arr[start_idx]
-        p_end = prices_arr[end_idx]
-        cpi_start = cpi_arr[start_idx]
-        cpi_end = cpi_arr[end_idx]
+        # Traiettoria dei prezzi decurtata del TER nella finestra (base t0 = 1.0)
+        window_prices = prices_arr[start_idx : end_idx + 1] * ter_factors
+        window_cpi = cpi_arr[start_idx : end_idx + 1]
+        window_months_series = months_arr[start_idx : end_idx + 1]
 
-        # CAGR Nominale e Reale a scadenza
-        nom_cagr = calculate_cagr(p_start, p_end, horizon_years)
-        cpi_growth = cpi_end / cpi_start - 1.0
+        p_start = window_prices[0]
+
+        # Imposta di bollo: scalata al 31 dicembre di ogni anno solare t > 0
+        if bollo_rate > 0.0:
+            dec_counts = np.zeros(window_months + 1, dtype=int)
+            dec_counts[1:] = np.cumsum(window_months_series[1:] == 12)
+            share_multipliers = (1.0 - bollo_rate) ** dec_counts
+        else:
+            share_multipliers = 1.0
+
+        # Controvalore lordo normalizzato su base 100
+        gross_values = 100.0 * (window_prices / p_start) * share_multipliers
+
+        # Tassazione capital gain al 26% al realizzo
+        if capital_gain_rate > 0.0:
+            profits = np.maximum(0.0, gross_values - 100.0)
+            taxes = profits * capital_gain_rate
+            net_values = gross_values - taxes
+        else:
+            net_values = gross_values
+
+        # Traiettoria del potere d'acquisto reale deflazionato con CPI FOI (base t0 = 100.0)
+        real_path = net_values * (window_cpi[0] / window_cpi)
+
+        # CAGR Nominale e Reale a scadenza finestra
+        nom_cagr = (net_values[-1] / 100.0) ** (1.0 / horizon_years) - 1.0
+        cpi_growth = window_cpi[-1] / window_cpi[0] - 1.0
         cpi_annual = (1.0 + cpi_growth) ** (1.0 / horizon_years) - 1.0
         real_cagr = calculate_real_return_fisher(nom_cagr, cpi_annual)
 
-        # Traiettoria reale normalizzata mese per mese (t0 = 1.0)
-        window_prices = prices_arr[start_idx : end_idx + 1]
-        window_cpi = cpi_arr[start_idx : end_idx + 1]
-        real_path = (window_prices / p_start) * (cpi_start / window_cpi)
-
-        # Analisi perdita reale (escludendo t=0)
-        in_loss_path = real_path[1:] < 1.0
+        # Analisi perdita reale rispetto alla base iniziale 100 (escludendo t=0)
+        in_loss_path = real_path[1:] < 100.0
         loss_months_total = int(np.sum(in_loss_path))
         pct_time_in_loss = (loss_months_total / window_months) * 100.0
 
@@ -141,9 +176,21 @@ def calculate_all_rolling_horizons(
     prices: pd.Series,
     cpi: pd.Series,
     horizons_years: Tuple[int, ...] = (5, 10, 15, 20),
+    ter_annual: float = 0.0,
+    bollo_rate: float = 0.0,
+    capital_gain_rate: float = 0.0,
 ) -> Dict[int, RollingWindowStats]:
     """Calcola le statistiche mobili per tutti gli orizzonti temporali indicati."""
     return {
-        h: calculate_rolling_returns(dates, prices, cpi, horizon_years=h)
+        h: calculate_rolling_returns(
+            dates=dates,
+            prices=prices,
+            cpi=cpi,
+            horizon_years=h,
+            ter_annual=ter_annual,
+            bollo_rate=bollo_rate,
+            capital_gain_rate=capital_gain_rate,
+        )
         for h in horizons_years
     }
+

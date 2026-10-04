@@ -1,6 +1,6 @@
 """Entry point principale: Analisi Statistica Comparativa a Finestre Mobili."""
 
-from src.config import OUTPUT_DIR, SimulationConfig
+from src.config import ETFConfig, OUTPUT_DIR, SimulationConfig, TaxConfig
 from src.data.fred_loader import load_italian_inflation
 from src.data.msci_loader import build_benchmarks_parquet
 from src.engine.statistics import calculate_all_rolling_horizons
@@ -14,6 +14,7 @@ from src.visualizer.tables import print_rolling_comprehensive_summary
 def run_benchmark():
     print("\n" + "=" * 80)
     print("     ITALIAN INVESTOR BENCHMARK: ROLLING RISK & RETURN ENGINE (2000-2025)")
+    print("        (Netto TER ETF, Imposta di Bollo 0.20% e Capital Gain 26%)")
     print("=" * 80)
 
     print("\n[1/3] Caricamento dati storici e allineamento all'inflazione FOI...")
@@ -25,19 +26,25 @@ def run_benchmark():
     cpi = df["cpi_index"]
 
     benchmarks = [
-        ("MSCI World (SWDA)", df["msci_world"]),
-        ("MSCI ACWI (VWCE)", df["msci_acwi"]),
-        ("MSCI ACWI IMI (VALL)", df["msci_acwi_imi"]),
+        ("MSCI World (SWDA)", df["msci_world"], ETFConfig.swda_ter),
+        ("MSCI ACWI (VWCE)", df["msci_acwi"], ETFConfig.vwce_ter),
+        ("MSCI ACWI IMI (VALL)", df["msci_acwi_imi"], ETFConfig.acwi_imi_ter),
     ]
 
     print(
         "\n[2/3] Calcolo delle metriche di rendimento e perdita reale su tutte"
-        " le finestre..."
+        " le finestre (Netto TER, Bollo 0.20% e Capital Gain 26%)..."
     )
     all_rolling = {}
-    for name, prices in benchmarks:
+    for name, prices, ter in benchmarks:
         all_rolling[name] = calculate_all_rolling_horizons(
-            dates, prices, cpi, SimulationConfig.rolling_horizons_years
+            dates=dates,
+            prices=prices,
+            cpi=cpi,
+            horizons_years=SimulationConfig.rolling_horizons_years,
+            ter_annual=ter,
+            bollo_rate=TaxConfig.bollo_annuo,
+            capital_gain_rate=TaxConfig.capital_gain,
         )
 
     # Output tabellare
@@ -56,3 +63,4 @@ def run_benchmark():
 
 if __name__ == "__main__":
     run_benchmark()
+

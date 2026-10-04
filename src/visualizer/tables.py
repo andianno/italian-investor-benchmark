@@ -17,7 +17,7 @@ def print_rolling_comprehensive_summary(
 
     print("\n" + "=" * 115)
     print(
-        "         ANALISI FINESTRE MOBILI (2000-2025): RENDIMENTI REALI E RISCHIO SOTT'ACQUA"
+        "   ANALISI FINESTRE MOBILI (2000-2025): RENDIMENTI REALI NETTI E RISCHIO SOTT'ACQUA (NETTO TASSE E TER)"
     )
     print("=" * 115)
 
@@ -61,3 +61,4 @@ def print_rolling_comprehensive_summary(
             print(" | ".join(row))
         print(divider)
     print("=" * 115 + "\n")
+
