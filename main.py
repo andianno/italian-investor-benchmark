@@ -8,7 +8,10 @@ from src.visualizer.charts import (
     plot_rolling_cagr_distributions,
     plot_rolling_loss_time,
 )
-from src.visualizer.tables import print_rolling_comprehensive_summary
+from src.visualizer.tables import (
+    print_rolling_comprehensive_summary,
+    save_rolling_summary_markdown,
+)
 
 
 def run_benchmark():
@@ -47,8 +50,13 @@ def run_benchmark():
             capital_gain_rate=TaxConfig.capital_gain,
         )
 
-    # Output tabellare
+    # Output tabellare a terminale e salvataggio Markdown
     print_rolling_comprehensive_summary(all_rolling)
+    save_rolling_summary_markdown(
+        all_rolling,
+        OUTPUT_DIR / "rolling_etf_summary.md",
+        title="Analisi Finestre Mobili (2000-2025): SWDA vs VWCE vs VALL (Netto TER e Tasse)",
+    )
 
     print("[3/3] Esportazione grafici statistici in output/...")
     plot_rolling_cagr_distributions(
@@ -56,7 +64,8 @@ def run_benchmark():
     )
     plot_rolling_loss_time(all_rolling, OUTPUT_DIR / "rolling_real_loss_time.png")
 
-    print(f"[OK] Fatto! Grafici esportati in {OUTPUT_DIR}/")
+    print(f"[OK] Fatto! Risultati esportati in {OUTPUT_DIR}/")
+    print("     - rolling_etf_summary.md (Tabella riassuntiva Markdown)")
     print("     - rolling_cagr_distribution.png (Boxplot rendimenti)")
     print("     - rolling_real_loss_time.png (Confronto % tempo in perdita reale)")
 

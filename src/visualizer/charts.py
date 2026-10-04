@@ -273,3 +273,134 @@ def plot_etf_vs_bank_fund_growth(
     fig.savefig(output_path)
     plt.close(fig)
 
+
+def plot_etf_vs_bank_rolling_cagr(
+    all_rolling: Dict[str, Dict[int, RollingWindowStats]],
+    output_path: Path = OUTPUT_DIR / "etf_vs_bank_fund_rolling_cagr.png",
+) -> None:
+    """Grafico Boxplot: Confronto distribuzione CAGR Reale Netto tra ETF Passivo e Fondo Bancario."""
+    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    fig, ax = plt.subplots(figsize=(11, 6), dpi=300)
+
+    horizons = [5, 10, 15, 20]
+    benchmarks = list(all_rolling.keys())
+    colors = ["#1f77b4", "#d62728"]  # Blu ETF, Rosso Fondo
+
+    width = 0.32
+    x_base = np.arange(len(horizons))
+
+    for idx, (name, col) in enumerate(zip(benchmarks, colors)):
+        pos = x_base + (idx - 0.5) * width
+        data = [all_rolling[name][h].windows_df["real_cagr"] * 100.0 for h in horizons]
+
+        ax.boxplot(
+            data,
+            positions=pos,
+            widths=width * 0.85,
+            patch_artist=True,
+            showmeans=True,
+            meanprops={
+                "marker": "o",
+                "markerfacecolor": "white",
+                "markeredgecolor": col,
+                "markersize": 6,
+            },
+            boxprops=dict(facecolor=col, color=col, alpha=0.45),
+            whiskerprops=dict(color=col, linewidth=1.3),
+            capprops=dict(color=col, linewidth=1.3),
+            medianprops=dict(color="black", linewidth=1.6),
+        )
+
+    ax.axhline(0, color="red", linestyle="--", linewidth=1.0, alpha=0.7)
+    ax.set_xticks(x_base)
+    ax.set_xticklabels([f"{h} Anni" for h in horizons], fontsize=11)
+    ax.set_ylabel("CAGR Reale Netto Tasse & TER (%)", fontsize=11)
+    ax.set_title(
+        "Distribuzione del CAGR Reale Netto per Orizzonte: ETF Passivo vs Fondo Bancario Attivo\n"
+        "MSCI World (2000-2025) | Netto TER (0.20% vs 2.00%), Bollo (0,20%/anno) e Capital Gain (26%)",
+        fontsize=12,
+        fontweight="bold",
+        pad=15,
+    )
+
+    handles = [
+        plt.Line2D([0], [0], color=c, lw=4, label=name)
+        for c, name in zip(colors, benchmarks)
+    ]
+    ax.legend(handles=handles, loc="upper right", frameon=True, fontsize=10)
+    fig.tight_layout()
+    fig.savefig(output_path)
+    plt.close(fig)
+
+
+def plot_etf_vs_bank_rolling_loss_time(
+    all_rolling: Dict[str, Dict[int, RollingWindowStats]],
+    output_path: Path = OUTPUT_DIR / "etf_vs_bank_fund_rolling_loss_time.png",
+) -> None:
+    """Grafico a barre: Confronto % di tempo in perdita reale (Caso Peggiore e Mediano) ETF vs Banca."""
+    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(13, 5.5), dpi=300)
+
+    horizons = [5, 10, 15, 20]
+    benchmarks = list(all_rolling.keys())
+    colors = ["#1f77b4", "#d62728"]
+    x = np.arange(len(horizons))
+    width = 0.32
+
+    # Subplot 1: CASO PEGGIORE
+    for idx, (name, col) in enumerate(zip(benchmarks, colors)):
+        worst_times = [all_rolling[name][h].loss_time_pct_max for h in horizons]
+        ax1.bar(
+            x + (idx - 0.5) * width,
+            worst_times,
+            width=width * 0.85,
+            label=name,
+            color=col,
+            alpha=0.85,
+        )
+
+    ax1.set_title(
+        "Scenario Peggiore: % Tempo Sott'Acqua rispetto all'Inflazione",
+        fontweight="bold",
+        fontsize=11,
+    )
+    ax1.set_xticks(x)
+    ax1.set_xticklabels([f"{h} Anni" for h in horizons])
+    ax1.set_ylabel("% Mesi della Finestra con Potere d'Acquisto < Versato")
+    ax1.set_ylim(0, 105)
+    ax1.legend(loc="upper right", fontsize=9.5)
+
+    # Subplot 2: CASO MEDIANO
+    for idx, (name, col) in enumerate(zip(benchmarks, colors)):
+        median_times = [all_rolling[name][h].loss_time_pct_median for h in horizons]
+        ax2.bar(
+            x + (idx - 0.5) * width,
+            median_times,
+            width=width * 0.85,
+            label=name,
+            color=col,
+            alpha=0.85,
+        )
+
+    ax2.set_title(
+        "Scenario Tipico (Mediana): % Tempo Sott'Acqua rispetto all'Inflazione",
+        fontweight="bold",
+        fontsize=11,
+    )
+    ax2.set_xticks(x)
+    ax2.set_xticklabels([f"{h} Anni" for h in horizons])
+    ax2.set_ylim(0, 105)
+    ax2.legend(loc="upper right", fontsize=9.5)
+
+    fig.suptitle(
+        "Permanenza in Perdita Reale per Orizzonte Temporale: ETF vs Fondo Bancario\n"
+        "(Netto Inflazione Italiana FOI, Bollo Dossier Titoli e Capital Gain)",
+        fontsize=12,
+        fontweight="bold",
+        y=1.02,
+    )
+    fig.tight_layout()
+    fig.savefig(output_path)
+    plt.close(fig)
+
+

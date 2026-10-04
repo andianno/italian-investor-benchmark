@@ -10,11 +10,21 @@ Entrambi incorporano la fiscalità italiana completa:
 - Deflazione per l'inflazione reale italiana (indice FOI Istat da FRED)
 """
 
-from src.config import BankFundConfig, ETFConfig, OUTPUT_DIR, TaxConfig
+from src.config import BankFundConfig, ETFConfig, OUTPUT_DIR, SimulationConfig, TaxConfig
 from src.data.fred_loader import load_italian_inflation
 from src.data.msci_loader import build_benchmarks_parquet
 from src.engine.portfolio import simulate_portfolio
-from src.visualizer.charts import plot_etf_vs_bank_fund_growth
+from src.engine.statistics import calculate_all_rolling_horizons
+from src.visualizer.charts import (
+    plot_etf_vs_bank_fund_growth,
+    plot_etf_vs_bank_rolling_cagr,
+    plot_etf_vs_bank_rolling_loss_time,
+)
+from src.visualizer.tables import (
+    print_rolling_comprehensive_summary,
+    save_bank_fund_accounting_markdown,
+    save_rolling_summary_markdown,
+)
 
 
 def run_bank_fund_comparison():
@@ -22,7 +32,7 @@ def run_bank_fund_comparison():
     print("   ITALIAN INVESTOR BENCHMARK: ETF PASSIVO vs FONDO BANCARIO ATTIVO (BASE 100)")
     print("=" * 90)
 
-    print("\n[1/3] Caricamento dati storici MSCI World e allineamento all'inflazione FOI...")
+    print("\n[1/4] Caricamento dati storici MSCI World e allineamento all'inflazione FOI...")
     df_bench = build_benchmarks_parquet()
     df_inf = load_italian_inflation()
     df = df_bench.merge(df_inf, on="date", how="inner").sort_values("date").reset_index(drop=True)
@@ -33,7 +43,7 @@ def run_bank_fund_comparison():
 
     print(f"      Periodo storico analizzato: {dates.iloc[0].date()} -> {dates.iloc[-1].date()} ({len(df)} mesi)")
 
-    print("\n[2/3] Simulazione contabile completa (Base 100, TER, Bollo 0.20% e Capital Gain 26%)...")
+    print("\n[2/4] Simulazione contabile completa (Base 100, TER, Bollo 0.20% e Capital Gain 26%)...")
     # 1. Simulazione ETF Passivo
     res_etf = simulate_portfolio(
         dates=dates,
@@ -91,17 +101,71 @@ def run_bank_fund_comparison():
     print(f"    - Su un investimento iniziale reale di 10.000€, l'ETF avrebbe reso {res_etf.final_nominal_net * 100:,.0f}€ netti contro {res_bank.final_nominal_net * 100:,.0f}€ netti del fondo.")
     print(f"    - Ricchezza mancata: {delta_nominal * 100:,.0f}€ finiti in costi di intermediazione.")
 
-    print("\n[3/3] Generazione ed esportazione del grafico ad alta risoluzione...")
-    chart_path = OUTPUT_DIR / "etf_vs_bank_fund_growth.png"
+    # Salvataggio tabella contabile Base 100 in Markdown
+    accounting_md_path = OUTPUT_DIR / "etf_vs_bank_fund_summary.md"
+    save_bank_fund_accounting_markdown(
+        res_etf=res_etf,
+        res_bank=res_bank,
+        output_path=accounting_md_path,
+    )
+
+    print("\n[3/4] Calcolo analisi finestre mobili (5, 10, 15, 20 anni) per ETF vs Fondo Bancario...")
+    rolling_comparison = {
+        "ETF Passivo (SWDA - TER 0.20%)": calculate_all_rolling_horizons(
+            dates=dates,
+            prices=prices,
+            cpi=cpi,
+            horizons_years=SimulationConfig.rolling_horizons_years,
+            ter_annual=ETFConfig.swda_ter,
+            bollo_rate=TaxConfig.bollo_annuo,
+            capital_gain_rate=TaxConfig.capital_gain,
+        ),
+        "Fondo Bancario (TER 2.00%)": calculate_all_rolling_horizons(
+            dates=dates,
+            prices=prices,
+            cpi=cpi,
+            horizons_years=SimulationConfig.rolling_horizons_years,
+            ter_annual=BankFundConfig.active_fund_ter,
+            bollo_rate=TaxConfig.bollo_annuo,
+            capital_gain_rate=TaxConfig.capital_gain,
+        ),
+    }
+
+    # Output tabellare a terminale
+    print_rolling_comprehensive_summary(rolling_comparison)
+
+    # Salvataggio tabella a finestre mobili in Markdown
+    rolling_md_path = OUTPUT_DIR / "etf_vs_bank_fund_rolling_summary.md"
+    save_rolling_summary_markdown(
+        rolling_comparison,
+        rolling_md_path,
+        title="Confronto Finestre Mobili (2000-2025): ETF Passivo vs Fondo Bancario Attivo",
+    )
+
+    print("[4/4] Generazione ed esportazione dei grafici ad alta risoluzione in output/...")
+    growth_path = OUTPUT_DIR / "etf_vs_bank_fund_growth.png"
     plot_etf_vs_bank_fund_growth(
         df_etf=res_etf.history,
         df_bank=res_bank.history,
-        output_path=chart_path,
+        output_path=growth_path,
         etf_label="ETF Passivo (SWDA - TER 0.20%)",
         bank_label="Fondo Bancario Attivo (TER 2.00%)",
     )
-    print(f"[OK] Grafico salvato con successo in: {chart_path}")
+
+    cagr_path = OUTPUT_DIR / "etf_vs_bank_fund_rolling_cagr.png"
+    plot_etf_vs_bank_rolling_cagr(rolling_comparison, cagr_path)
+
+    loss_time_path = OUTPUT_DIR / "etf_vs_bank_fund_rolling_loss_time.png"
+    plot_etf_vs_bank_rolling_loss_time(rolling_comparison, loss_time_path)
+
+    print(f"[OK] Analisi completata con successo! File salvati in {OUTPUT_DIR}/:")
+    print("     - etf_vs_bank_fund_summary.md (Tabella contabile Base 100)")
+    print("     - etf_vs_bank_fund_rolling_summary.md (Tabella comparativa finestre mobili)")
+    print("     - etf_vs_bank_fund_growth.png (Crescita temporale Base 100)")
+    print("     - etf_vs_bank_fund_rolling_cagr.png (Boxplot rendimenti reali per orizzonte)")
+    print("     - etf_vs_bank_fund_rolling_loss_time.png (Confronto % tempo in perdita reale)")
 
 
 if __name__ == "__main__":
     run_bank_fund_comparison()
+
