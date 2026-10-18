@@ -266,7 +266,46 @@ Tutti i file di output (grafici ad alta risoluzione a 300 DPI e tabelle Markdown
 
 ---
 
-## 7. Dati e Licenze
+## 7. Come Reperire i Dati Storici
 
-* **Dati Indici:** Proprietà di MSCI Inc. I file grezzi non sono ridistribuiti nel repository per rispetto delle condizioni d'uso del fornitore.
+I file di dati grezzi non vengono ridistribuiti direttamente nel repository per ragioni di copyright e termini d'uso dei rispettivi fornitori. Di seguito sono descritti i passaggi esatti per recuperarli e posizionarli nella cartella `data/raw/`.
+
+### 7.1 Dati Ufficiali MSCI (Esperimenti 1 e 2: 2000–2025)
+Utilizzati per l'analisi a finestre mobili (SWDA vs VWCE vs VALL) e per il confronto con il fondo bancario:
+1. Accedere al portale ufficiale [MSCI End of Day Index Data Search](https://www.msci.com/end-of-day-data-search).
+2. Per ciascun indice impostare i seguenti parametri:
+   - **Currency:** EUR (Net Total Return)
+   - **Frequency:** Monthly (End of Month)
+3. Esportare e scaricare i file Excel (`.xls`) per i tre benchmark:
+   - **MSCI World Index** $\to$ salvare come `data/raw/msci_world.xls`
+   - **MSCI ACWI Index** $\to$ salvare come `data/raw/msci_acwi.xls`
+   - **MSCI ACWI IMI Index** $\to$ salvare come `data/raw/msci_acwi_imi.xls`
+4. Il parser [`src/data/msci_loader.py`](src/data/msci_loader.py) si occupa in autonomia di rimuovere le intestazioni di metadati, scartare le note legali in calce e normalizzare le serie su un calendario mensile comune salvandole in `data/cache/benchmarks.parquet`.
+
+---
+
+### 7.2 Dati Curvo Backtest (Esperimento 3: Stress Test Giappone 1989–2025)
+Utilizzati per estendere l'analisi storica fino a fine 1989 (sul portale pubblico MSCI le serie storiche partono dal 2000, mentre Curvo dispone delle serie ufficiali MSCI ricostruite all'indietro in EUR fin dagli anni '70):
+1. Accedere allo strumento [Curvo Backtest](https://curvo.eu/backtest/).
+2. Selezionare i singoli indici impostando la valuta in **EUR**:
+   - **MSCI Japan** (disponibile dal 12/1978)
+   - **MSCI World** (disponibile dal 12/1969)
+3. Esportare la serie storica dei rendimenti mensili cliccando su **"Download CSV"** o esportazione dati.
+4. Salvare i due file CSV nella cartella `data/raw/` con la seguente denominazione esatta:
+   - `data/raw/msci_japan_curvo.csv`
+   - `data/raw/msci_world_curvo.csv`
+5. Il loader [`src/data/japan_stress_loader.py`](src/data/japan_stress_loader.py) leggerà questi file, scorporerà matematicamente la serie di `MSCI World ex-Japan` in base alla capitalizzazione storica del 1989 (~44%) e costruirà l'indice sintetico flottante 70/30.
+
+---
+
+### 7.3 Dati Inflazione Italiana FOI (FRED St. Louis)
+* **Serie:** `ITACPIALLMINMEI` (Consumer Price Index of All Items for Italy, base mensile FOI Istat).
+* **Download:** **Completamente automatico**. Non è richiesta alcuna azione manuale: il modulo [`src/data/fred_loader.py`](src/data/fred_loader.py) contatta direttamente l'API pubblica di FRED St. Louis al primo avvio, memorizzando la serie storica in `data/cache/inflation_italy.parquet`.
+
+---
+
+## 8. Licenze e Note Legali
+
+* **Dati Indici:** Proprietà intellettuale di MSCI Inc. I file grezzi non sono ridistribuiti nel repository per rispetto delle condizioni d'uso del fornitore.
 * **Dati Inflazione:** Istat / FRED (Federal Reserve Bank of St. Louis).
+* **Codice Sorgente:** Rilasciato per scopi di studio, trasparenza metodologica e ricerca personale.
