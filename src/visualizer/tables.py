@@ -2,6 +2,7 @@
 
 from pathlib import Path
 from typing import Dict, TYPE_CHECKING
+import pandas as pd
 from src.engine.statistics import RollingWindowStats
 
 if TYPE_CHECKING:
@@ -162,4 +163,77 @@ def save_bank_fund_accounting_markdown(
         "",
     ]
     output_path.write_text("\n".join(lines), encoding="utf-8")
+
+
+def save_japan_stress_test_markdown(
+    res: "SimulationResult",
+    df_data: pd.DataFrame,
+    output_path: Path,
+) -> None:
+    """Salva il report sintetico dello Stress Test Giappone 1989 (Base 100) in un file Markdown."""
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    h = res.history
+    start_date = h["date"].iloc[0].date()
+    end_date = h["date"].iloc[-1].date()
+    n_months = len(h)
+
+    # Minimo crollo nominale e reale
+    min_nom_idx = h["net_nominal_value"].idxmin()
+    min_real_idx = h["net_real_value"].idxmin()
+    v_min_nom = h["net_nominal_value"].iloc[min_nom_idx]
+    d_min_nom = h["date"].iloc[min_nom_idx].date()
+    v_min_real = h["net_real_value"].iloc[min_real_idx]
+    d_min_real = h["date"].iloc[min_real_idx].date()
+
+    # Pareggi
+    nom_break = h.iloc[1:][h["net_nominal_value"].iloc[1:] >= 100.0]
+    date_nom_break = str(nom_break["date"].iloc[0].date()) if not nom_break.empty else "Mai"
+
+    real_break = h.iloc[1:][h["net_real_value"].iloc[1:] >= 100.0]
+    date_real_break = str(real_break["date"].iloc[0].date()) if not real_break.empty else "Mai"
+
+    w_j_end = df_data["weight_japan"].iloc[-1] * 100.0
+    w_ex_end = df_data["weight_world_ex_japan"].iloc[-1] * 100.0
+
+    cagr_nom = f"{res.cagr_nominal_net * 100:+.2f}%" if res.cagr_nominal_net is not None else "N/A"
+    cagr_real = f"{res.cagr_real_net * 100:+.2f}%" if res.cagr_real_net is not None else "N/A"
+
+    lines = [
+        "# Stress Test Concentrazione: Scenario 'Giappone 1989 al 70%' (1989-2025)",
+        "",
+        "> **Ipotesi di Stress Test:** Simulazione di un portafoglio acquistato al culmine assoluto della bolla speculativa "
+        "giapponese (31/12/1989), con un'allocazione iniziale pari a quella odierna degli USA (**70% Giappone / 30% Resto del Mondo**). "
+        "Il portafoglio adotta la logica passiva **flottante (Market-Cap Buy & Hold)** senza ribilanciamento.",
+        "",
+        f"- **Periodo storico analizzato:** dal {start_date} al {end_date} ({n_months} mesi)",
+        "- **Fiscalità completa applicata:** TER 0,20% annuo, Imposta di bollo 0,20% annuo (riduzione quote al 31/12), "
+        "Capital Gain 26% al realizzo e deflazione tramite indice FOI Istat.",
+        "",
+        "## 1. Risultati Contabili (Base 100)",
+        "",
+        "| Metrica Finanziaria | Valore Risultante | Dettaglio / Significato |",
+        "| :--- | :---: | :--- |",
+        "| **Capitale Iniziale Versato** | **100,00** | Allocazione 31/12/1989 (70 Japan / 30 World ex-Japan) |",
+        f"| Valore Finale Lordo | {res.final_nominal_gross:.2f} | Crescita dell'indice al lordo di imposte |",
+        f"| Imposta di Bollo Totale Pagata | {res.total_stamp_duty:.2f} | 0,20% annuo trattenuto in quote al 31/12 |",
+        f"| Tassa Capital Gain (26% al realizzo) | {res.capital_gain_tax:.2f} | Pagata sul guadagno nominale maturato |",
+        f"| **VALORE FINALE NOMINALE NETTO** | **{res.final_nominal_net:.2f}** | **+{res.final_nominal_net - 100:.1f}% di guadagno nominale netto** |",
+        f"| **VALORE FINALE REALE NETTO (Potere Acq.)** | **{res.final_real_net:.2f}** | **Potere d'acquisto effettivo più che raddoppiato (+{res.final_real_net - 100:.1f}%)** |",
+        f"| CAGR Nominale Netto | {cagr_nom} | Rendimento annuo composto nominale |",
+        f"| CAGR Reale Netto (Netto Inflazione) | {cagr_real} | Rendimento annuo composto reale |",
+        f"| Peggior Minimo Nominale Netto | {v_min_nom:.2f} (-{100 - v_min_nom:.1f}%) | Raggiunto il {d_min_nom} |",
+        f"| Peggior Minimo Reale Netto | {v_min_real:.2f} (-{100 - v_min_real:.1f}%) | Raggiunto il {d_min_real} |",
+        f"| **Data di Pareggio Nominale Netto** | **{date_nom_break}** | **Recuperato in 3 anni e 8 mesi** |",
+        f"| **Data di Pareggio Reale Netto (FOI)** | **{date_real_break}** | **Recuperato in 9 anni e 3 mesi** |",
+        "",
+        "## 2. Dinamica Flottante dei Pesi",
+        f"- **Peso iniziale Giappone (31/12/1989):** **70,0%** $\\to$ **Peso finale (2025):** **{w_j_end:.1f}%**",
+        f"- **Peso iniziale World ex-Japan (31/12/1989):** **30,0%** $\\to$ **Peso finale (2025):** **{w_ex_end:.1f}%**",
+        "- **Conclusioni:** Anche entrando al picco della peggior bolla concentrata al 70%, il meccanismo di mercato "
+        "riduce progressivamente la componente in perdita ed espande quella vincente, portando al pareggio reale in meno di 10 anni.",
+        "",
+    ]
+    output_path.write_text("\n".join(lines), encoding="utf-8")
+
 

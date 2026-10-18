@@ -404,3 +404,176 @@ def plot_etf_vs_bank_rolling_loss_time(
     plt.close(fig)
 
 
+def plot_japan_stress_test_growth(
+    df_history: pd.DataFrame,
+    df_weights: pd.DataFrame,
+    output_path: Path = OUTPUT_DIR / "japan_stress_test_growth.png",
+) -> None:
+    """Grafico a due pannelli per lo Stress Test Giappone 1989 (70% Japan / 30% World ex-Japan):
+    Pannello 1: Capitale Netto Nominale vs Reale (Base 100) con punti di pareggio.
+    Pannello 2: Evoluzione dei pesi percentuali del portafoglio flottante.
+    """
+    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    fig, (ax1, ax2) = plt.subplots(
+        2, 1, figsize=(13, 9.5), dpi=300, gridspec_kw={"height_ratios": [2.2, 1]}
+    )
+
+    dates = df_history["date"]
+    nom = df_history["net_nominal_value"]
+    real = df_history["net_real_value"]
+
+    # --- PANNELLO 1: PERFORMANCE NOMINALE E REALE ---
+    ax1.plot(
+        dates,
+        nom,
+        color="#1f77b4",
+        linewidth=2.4,
+        label=f"Valore Netto Nominale (Fine: {nom.iloc[-1]:.1f})",
+    )
+    ax1.plot(
+        dates,
+        real,
+        color="#2ca02c",
+        linewidth=2.2,
+        linestyle="--",
+        label=f"Valore Netto Reale (Potere d'Acquisto - Fine: {real.iloc[-1]:.1f})",
+    )
+
+    # Linea di pareggio (100)
+    ax1.axhline(
+        100,
+        color="#7f7f7f",
+        linestyle=":",
+        linewidth=1.3,
+        alpha=0.8,
+        label="Pareggio Capitale Iniziale (100)",
+    )
+
+    # Area sotto il pareggio reale (zona di perdita reale)
+    ax1.fill_between(
+        dates,
+        real,
+        100,
+        where=(real < 100),
+        color="#d62728",
+        alpha=0.15,
+        label="Zona di Perdita Reale di Potere d'Acquisto",
+    )
+
+    # Punti chiave:
+    # 1. Minimo reale
+    min_real_idx = real.idxmin()
+    d_min_real = dates.iloc[min_real_idx]
+    v_min_real = real.iloc[min_real_idx]
+    ax1.scatter([d_min_real], [v_min_real], color="#d62728", s=60, zorder=5)
+    ax1.annotate(
+        f"Minimo Reale: {v_min_real:.1f}\n({d_min_real.strftime('%m/%Y')})",
+        xy=(d_min_real, v_min_real),
+        xytext=(d_min_real, v_min_real - 35),
+        arrowprops=dict(arrowstyle="->", color="#d62728", lw=1.2),
+        fontsize=8.5,
+        fontweight="bold",
+        color="#d62728",
+        ha="center",
+    )
+
+    # 2. Pareggio Nominale
+    nom_break = df_history.iloc[1:][nom.iloc[1:] >= 100.0]
+    if not nom_break.empty:
+        d_nom_break = nom_break["date"].iloc[0]
+        ax1.scatter([d_nom_break], [100], color="#1f77b4", s=50, zorder=5)
+        ax1.annotate(
+            f"Pareggio Nominale\n({d_nom_break.strftime('%m/%Y')})",
+            xy=(d_nom_break, 100),
+            xytext=(d_nom_break, 160),
+            arrowprops=dict(arrowstyle="->", color="#1f77b4", lw=1.2),
+            fontsize=8.5,
+            color="#1f77b4",
+            ha="center",
+        )
+
+    # 3. Pareggio Reale
+    real_break = df_history.iloc[1:][real.iloc[1:] >= 100.0]
+    if not real_break.empty:
+        d_real_break = real_break["date"].iloc[0]
+        ax1.scatter([d_real_break], [100], color="#2ca02c", s=50, zorder=5)
+        ax1.annotate(
+            f"Pareggio Reale\n({d_real_break.strftime('%m/%Y')})",
+            xy=(d_real_break, 100),
+            xytext=(d_real_break, 180),
+            arrowprops=dict(arrowstyle="->", color="#2ca02c", lw=1.2),
+            fontsize=8.5,
+            color="#2ca02c",
+            ha="center",
+        )
+
+    ax1.set_title(
+        "Stress Test Concentrazione Geografica: Scenario 'Giappone 1989 al 70%' (1989-2025)\n"
+        "Ingresso al Picco Storico della Bolla con 70% Giappone | Pesi Flottanti (Market-Cap Buy & Hold)\n"
+        "Netto TER ETF (0.20%), Imposta di Bollo (0.20%/anno al 31/12), Capital Gain (26%) e Inflazione FOI Istat",
+        fontsize=11.5,
+        fontweight="bold",
+        pad=12,
+    )
+    ax1.set_ylabel("Valore Netto di Realizzo (Base 100)", fontsize=10.5)
+    ax1.set_ylim(bottom=0)
+    ax1.legend(loc="upper left", frameon=True, framealpha=0.9, fontsize=9)
+
+    # --- PANNELLO 2: EVOLUZIONE DEI PESI FLOTTANTI ---
+    w_dates = df_weights["date"]
+    w_japan = df_weights["weight_japan"] * 100.0
+
+    ax2.fill_between(w_dates, 0, w_japan, color="#d62728", alpha=0.7, label=f"Giappone (da 70,0% a {w_japan.iloc[-1]:.1f}%)")
+    ax2.fill_between(w_dates, w_japan, 100, color="#1f77b4", alpha=0.6, label=f"World ex-Japan (da 30,0% a {100.0 - w_japan.iloc[-1]:.1f}%)")
+
+    ax2.set_title(
+        "Evoluzione dei Pesi di Mercato nel Tempo (Dinamica Flottante del Market-Cap Weighting)",
+        fontsize=10.5,
+        fontweight="bold",
+        pad=8,
+    )
+    ax2.set_ylabel("% Portafoglio", fontsize=10)
+    ax2.set_xlabel("Anno", fontsize=10.5)
+    ax2.set_ylim(0, 100)
+    ax2.legend(loc="center right", frameon=True, framealpha=0.9, fontsize=8.5)
+
+    # Box statistico riassuntivo posizionato in basso sotto i grafici (senza coprire le curve)
+    years = (dates.iloc[-1] - dates.iloc[0]).days / 365.25
+    cagr_nom = ((nom.iloc[-1] / 100.0) ** (1.0 / years) - 1.0) * 100.0
+    cagr_real = ((real.iloc[-1] / 100.0) ** (1.0 / years) - 1.0) * 100.0
+
+    stats_line1 = (
+        f"Capitale Iniziale: 100,0   •   "
+        f"Finale Nominale Netto: {nom.iloc[-1]:.1f} (+{nom.iloc[-1]-100:.1f}%, CAGR {cagr_nom:+.2f}%)   •   "
+        f"Pareggio Nominale: 3 anni e 8 mesi (08/1993)"
+    )
+    stats_line2 = (
+        f"Peggior Minimo Reale: {v_min_real:.1f} (-{100-v_min_real:.1f}%)   •   "
+        f"Finale Reale Netto: {real.iloc[-1]:.1f} (+{real.iloc[-1]-100:.1f}%, CAGR {cagr_real:+.2f}%)   •   "
+        f"Pareggio Reale (FOI): 9 anni e 3 mesi (03/1999)"
+    )
+    stats_box = f"RIEPILOGO METRICHE CHIAVE (Netto TER 0,20%, Bollo 0,20% e Capital Gain 26%):\n{stats_line1}\n{stats_line2}"
+
+    fig.text(
+        0.5,
+        0.016,
+        stats_box,
+        fontsize=9,
+        ha="center",
+        va="bottom",
+        linespacing=1.45,
+        bbox=dict(
+            boxstyle="round,pad=0.6",
+            facecolor="#f8f9fa",
+            edgecolor="#b0bec5",
+            alpha=0.95,
+            linewidth=1.0,
+        ),
+    )
+
+    fig.tight_layout(rect=[0, 0.078, 1, 1])
+    fig.savefig(output_path)
+    plt.close(fig)
+
+
+

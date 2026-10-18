@@ -15,11 +15,11 @@ data/cache/
 data/raw
 
 # Output grafici generati
-output/
-*.png
-*.html
+# output/
+# *.png
+# *.html
 
 # File di configurazione degli editor
 .vscode/
-.idea/
-.DS_Storedata/raw/
+.DS_Store
+data/raw/
